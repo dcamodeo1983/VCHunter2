@@ -12,8 +12,6 @@ class VCWebsiteScraperAgent:
             response = self.session.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
-
-            # Extract visible text from relevant tags
             tags = soup.find_all(["h1", "h2", "h3", "p", "li"])
             content = "\n".join(tag.get_text(strip=True) for tag in tags if tag.get_text(strip=True))
             return content.strip()
@@ -23,14 +21,14 @@ class VCWebsiteScraperAgent:
     def find_portfolio_links(self, base_url):
         try:
             response = self.session.get(base_url, headers=self.headers, timeout=10)
+            response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
-
             links = soup.find_all("a", href=True)
             portfolio_links = [
                 urljoin(base_url, link["href"])
                 for link in links
-                if any(keyword in link.get_text(strip=True).lower() for keyword in ["portfolio", "companies", "investments"])
+                if any(kw in link.get_text(strip=True).lower() for kw in ["portfolio", "companies", "investments"])
             ]
             return list(set(portfolio_links))
-        except Exception as e:
-            return f"[Error finding portfolio links on {base_url}: {e}]"
+        except Exception:
+            return []
