@@ -28,10 +28,15 @@ class PortfolioEnricherAgent:
 
         return entries
 
-    def fetch_and_enrich(self, url):
-        try:
-            response = self.session.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            return self.extract_portfolio_entries(response.text)
-        except Exception as e:
-            return f"[Error enriching portfolio: {e}]"
+    def extract_portfolio_entries_from_pages(self, urls):
+        all_entries = []
+        for url in urls:
+            try:
+                response = self.session.get(url, headers=self.headers, timeout=10)
+                response.raise_for_status()
+                html = response.text
+                entries = self.extract_portfolio_entries(html)
+                all_entries.extend(entries)
+            except Exception:
+                continue
+        return all_entries
