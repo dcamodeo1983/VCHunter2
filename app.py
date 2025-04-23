@@ -11,10 +11,9 @@ from agents.embedder_agent import EmbedderAgent
 from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
-from utils.utils import clean_text, count_tokens, embed_vc_profile
 from agents.clustering_agent import ClusteringAgent
 from agents.categorizer_agent import CategorizerAgent
-
+from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -105,7 +104,7 @@ if vc_csv:
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
             if strategy_summary:
-                lines = strategy_summary.split("")
+                lines = strategy_summary.split("\n")  # ✅ FIXED
                 for line in lines:
                     if line.lower().startswith("category"):
                         st.markdown(f"### 🧠 Strategic Identity")
@@ -133,7 +132,9 @@ if vc_csv:
                 cached_profiles = [p for p in cached_profiles if p['url'] != url]  # deduplicate
                 cached_profiles.append(vc_profile)
                 save_vc_profiles(cached_profiles)
-        st.divider()
+
+# === Run Clustering + Categorization ===
+st.divider()
 st.subheader("🧭 VC Landscape Categorization")
 
 if st.button("Run Clustering + Categorization"):
@@ -149,4 +150,3 @@ if st.button("Run Clustering + Categorization"):
 
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
-
