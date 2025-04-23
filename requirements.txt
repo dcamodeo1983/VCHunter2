@@ -4,5 +4,7 @@ python-dotenv
 PyPDF2
 python-docx
 tiktoken
+requests
+beautifulsoup4
 
 
