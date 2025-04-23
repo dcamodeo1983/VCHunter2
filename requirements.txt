@@ -6,5 +6,5 @@ python-docx
 tiktoken
 requests
 beautifulsoup4
-
+scikit-learn
 
