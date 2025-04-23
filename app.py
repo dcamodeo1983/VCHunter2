@@ -12,6 +12,9 @@ from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
+from agents.clustering_agent import ClusteringAgent
+from agents.categorizer_agent import CategorizerAgent
+
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -24,6 +27,22 @@ def load_vc_profiles():
 def save_vc_profiles(profiles):
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
+st.divider()
+st.subheader("🧭 VC Landscape Categorization")
+
+if st.button("Run Clustering + Categorization"):
+    st.info("Clustering VC embeddings...")
+    cluster_agent = ClusteringAgent(n_clusters=5)
+    clustered_profiles = cluster_agent.cluster()
+    st.success("Clustering complete.")
+
+    st.info("Categorizing each cluster...")
+    categorize_agent = CategorizerAgent(api_key=openai_api_key)
+    categorized_profiles = categorize_agent.categorize_clusters()
+    st.success("Categorization complete.")
+
+    st.balloons()
+    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
