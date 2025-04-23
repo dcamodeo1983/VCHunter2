@@ -1,5 +1,4 @@
 import numpy as np
-import umap
 from sklearn.cluster import KMeans
 import json
 import os
@@ -22,24 +21,20 @@ class ClusteringAgent:
 
     def cluster(self):
         profiles = self.load_profiles()
-        embeddings = [p['embedding'] for p in profiles if p['embedding'] and isinstance(p['embedding'], list)]
-        names = [p['name'] for p in profiles if p['embedding'] and isinstance(p['embedding'], list)]
+        embeddings = [p['embedding'] for p in profiles if p.get('embedding') and isinstance(p['embedding'], list)]
 
         if not embeddings:
-            raise ValueError("No valid embeddings found in profiles.")
+            raise ValueError("No valid embeddings found.")
 
         embeddings = np.array(embeddings)
-
-        reducer = umap.UMAP(n_neighbors=10, min_dist=0.1, n_components=2, random_state=42)
-        coordinates = reducer.fit_transform(embeddings)
 
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
         cluster_ids = kmeans.fit_predict(embeddings)
 
         for i, profile in enumerate(profiles):
-            if i < len(coordinates):
-                profile["coordinates"] = coordinates[i].tolist()
+            if i < len(cluster_ids):
                 profile["cluster_id"] = int(cluster_ids[i])
+                profile["coordinates"] = embeddings[i][:2]  # Fake 2D coords (first 2 dims)
 
         self.save_profiles(profiles)
         return profiles
