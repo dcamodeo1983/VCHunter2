@@ -27,22 +27,6 @@ def load_vc_profiles():
 def save_vc_profiles(profiles):
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
-st.divider()
-st.subheader("🧭 VC Landscape Categorization")
-
-if st.button("Run Clustering + Categorization"):
-    st.info("Clustering VC embeddings...")
-    cluster_agent = ClusteringAgent(n_clusters=5)
-    clustered_profiles = cluster_agent.cluster()
-    st.success("Clustering complete.")
-
-    st.info("Categorizing each cluster...")
-    categorize_agent = CategorizerAgent(api_key=openai_api_key)
-    categorized_profiles = categorize_agent.categorize_clusters()
-    st.success("Categorization complete.")
-
-    st.balloons()
-    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
@@ -150,3 +134,20 @@ if vc_csv:
                 cached_profiles = [p for p in cached_profiles if p['url'] != url]  # deduplicate
                 cached_profiles.append(vc_profile)
                 save_vc_profiles(cached_profiles)
+        st.divider()
+st.subheader("🧭 VC Landscape Categorization")
+
+if st.button("Run Clustering + Categorization"):
+    st.info("Clustering VC embeddings...")
+    cluster_agent = ClusteringAgent(n_clusters=5)
+    clustered_profiles = cluster_agent.cluster()
+    st.success("Clustering complete.")
+
+    st.info("Categorizing each cluster...")
+    categorize_agent = CategorizerAgent(api_key=openai_api_key)
+    categorized_profiles = categorize_agent.categorize_clusters()
+    st.success("Categorization complete.")
+
+    st.balloons()
+    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
