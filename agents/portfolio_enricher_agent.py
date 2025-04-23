@@ -1,8 +1,9 @@
-from playwright.sync_api import sync_playwright
+import requests
 from bs4 import BeautifulSoup
 
 class PortfolioEnricherAgent:
     def __init__(self):
+        self.session = requests.Session()
         self.headers = {"User-Agent": "Mozilla/5.0"}
 
     def extract_portfolio_entries(self, html):
@@ -29,21 +30,13 @@ class PortfolioEnricherAgent:
 
     def extract_portfolio_entries_from_pages(self, urls):
         all_entries = []
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-
-            for url in urls:
-                try:
-                    page.goto(url, timeout=20000)
-                    page.wait_for_timeout(3000)  # Wait for JS content to load
-                    html = page.content()
-                    entries = self.extract_portfolio_entries(html)
-                    all_entries.extend(entries)
-                except Exception:
-                    continue
-
-            browser.close()
-
+        for url in urls:
+            try:
+                response = self.session.get(url, headers=self.headers, timeout=10)
+                response.raise_for_status()
+                html = response.text
+                entries = self.extract_portfolio_entries(html)
+                all_entries.extend(entries)
+            except Exception:
+                continue
         return all_entries
