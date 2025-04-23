@@ -2,6 +2,7 @@
 
 import streamlit as st
 import os
+import pandas as pd
 from dotenv import load_dotenv
 from agents.founder_doc_reader_agent import FounderDocReaderAgent
 from agents.llm_summarizer_agent import LLMSummarizerAgent
@@ -50,37 +51,45 @@ if uploaded_file:
         else:
             st.error(embedding)
 
-# === VC Analysis Section ===
+# === Batch VC Analysis Section ===
 st.divider()
-st.header("🏢 Analyze a VC Firm")
-vc_url = st.text_input("Enter a VC website URL (e.g., https://luxcapital.com)")
+st.header("📥 Upload CSV of VC URLs")
 
-if vc_url:
-    scraper = VCWebsiteScraperAgent()
-    enricher = PortfolioEnricherAgent()
-    interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
+vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
 
-    st.info("🔎 Scraping VC website...")
-    vc_site_text = scraper.scrape_text(vc_url)
-    st.success("✅ VC site text retrieved.")
+if vc_csv:
+    df = pd.read_csv(vc_csv)
+    urls = df['url'].dropna().unique().tolist()
+    st.success(f"✅ Loaded {len(urls)} VC URLs")
 
-    st.info("📊 Extracting structured portfolio entries...")
-    structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
-    st.success(f"✅ Portfolio enriched. {len(structured_portfolio)} entries structured.")
+    for url in urls:
+        with st.expander(f"🔍 {url}"):
+            scraper = VCWebsiteScraperAgent()
+            enricher = PortfolioEnricherAgent()
+            interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
 
-    st.subheader("📦 Portfolio Snapshot")
-    for entry in structured_portfolio[:5]:
-        st.markdown(f"- **{entry['name']}**: {entry['description']}")
+            st.info("Scraping site text...")
+            vc_site_text = scraper.scrape_text(url)
 
-    st.info("🧠 Generating VC profile embedding...")
-    portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-    vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
-    if isinstance(vc_embedding, list):
-        st.success(f"✅ VC embedding created. Vector length: {len(vc_embedding)}")
-    else:
-        st.error(vc_embedding)
+            st.info("Extracting portfolio entries...")
+            structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
+            st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
-    st.info("📚 Interpreting VC strategic thesis...")
-    strategy_summary = interpreter.interpret_strategy("VC Firm", vc_site_text, structured_portfolio)
-    st.subheader("🧠 Interpreted Strategy")
-    st.markdown(strategy_summary)
+            st.info("Embedding profile...")
+            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
+
+            st.info("Interpreting strategy...")
+            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
+
+            if strategy_summary:
+                lines = strategy_summary.split("\n")
+                for line in lines:
+                    if line.lower().startswith("category"):
+                        st.markdown(f"### 📂 {line}")
+                    elif line.lower().startswith("rationale"):
+                        st.markdown(f"**Rationale:** {line.replace('Rationale:', '').strip()}")
+                    elif line.lower().startswith("motivational signals"):
+                        st.markdown(f"**Motivational Signals:** {line.replace('Motivational Signals:', '').strip()}")
+                    else:
+                        st.markdown(line)
