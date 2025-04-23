@@ -105,8 +105,7 @@ if vc_csv:
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
             if strategy_summary:
-                lines = strategy_summary.split("
-")
+                lines = strategy_summary.split("")
                 for line in lines:
                     if line.lower().startswith("category"):
                         st.markdown(f"### 🧠 Strategic Identity")
