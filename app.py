@@ -15,7 +15,7 @@ Upload your startup concept to receive curated insights and a clear summary of y
 """)
 
 load_dotenv()
-openai_api_key = st.secrets["OPENAI_API_KEY"]
+openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 
 # === Upload & Run ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
