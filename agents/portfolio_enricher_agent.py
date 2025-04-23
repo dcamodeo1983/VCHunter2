@@ -1,36 +1,37 @@
-import re
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 
 class PortfolioEnricherAgent:
     def __init__(self):
         self.session = requests.Session()
         self.headers = {"User-Agent": "Mozilla/5.0"}
 
-    def extract_portfolio_from_html(self, html):
-        """
-        Extract probable company names or short profiles from HTML content.
-        Can be improved later with Crunchbase or API integrations.
-        """
-        try:
-            soup = BeautifulSoup(html, "html.parser")
-            text_blocks = soup.find_all(["h3", "h4", "p", "div", "span"])
-            company_names = []
+    def extract_portfolio_entries(self, html):
+        soup = BeautifulSoup(html, "html.parser")
+        entries = []
 
-            for block in text_blocks:
-                content = block.get_text(strip=True)
-                if 3 < len(content.split()) < 30 and any(char.isalpha() for char in content):
-                    company_names.append(content)
+        blocks = soup.find_all(["div", "li", "article", "section"])
+        for block in blocks:
+            text = block.get_text(separator=" ", strip=True)
+            if not text or len(text) < 20 or len(text.split()) > 60:
+                continue
 
-            clean = sorted(set(company_names))
-            return "\n".join(clean[:50]) if clean else "[No portfolio text found]"
-        except Exception as e:
-            return f"[Error during enrichment: {e}]"
+            name_candidate = block.find(["h2", "h3", "strong"])
+            name = name_candidate.get_text(strip=True) if name_candidate else None
 
-    def fetch_and_extract_from_url(self, url):
+            if name and any(c.isalpha() for c in name):
+                entries.append({
+                    "name": name,
+                    "description": text.replace(name, "").strip(),
+                    "source_html": text
+                })
+
+        return entries
+
+    def fetch_and_enrich(self, url):
         try:
             response = self.session.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
-            return self.extract_portfolio_from_html(response.text)
+            return self.extract_portfolio_entries(response.text)
         except Exception as e:
-            return f"[Error fetching from {url}: {e}]"
+            return f"[Error enriching portfolio: {e}]"
