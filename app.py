@@ -20,13 +20,13 @@ Upload your startup concept to receive curated insights and a clear summary of y
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+embedder = EmbedderAgent(api_key=openai_api_key)
 
 # === Upload & Run ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 if uploaded_file:
     reader = FounderDocReaderAgent()
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
-    embedder = EmbedderAgent(api_key=openai_api_key)
 
     st.info("⏳ Extracting text from your file...")
     text = reader.extract_text(uploaded_file)
