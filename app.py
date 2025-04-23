@@ -8,6 +8,7 @@ from agents.llm_summarizer_agent import LLMSummarizerAgent
 from agents.embedder_agent import EmbedderAgent
 from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
+from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
@@ -57,18 +58,29 @@ vc_url = st.text_input("Enter a VC website URL (e.g., https://luxcapital.com)")
 if vc_url:
     scraper = VCWebsiteScraperAgent()
     enricher = PortfolioEnricherAgent()
+    interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
 
     st.info("🔎 Scraping VC website...")
     vc_site_text = scraper.scrape_text(vc_url)
     st.success("✅ VC site text retrieved.")
 
-    st.info("📊 Extracting portfolio overview...")
-    portfolio_text = enricher.extract_portfolio_from_html(vc_site_text)
-    st.success("✅ Portfolio data extracted.")
+    st.info("📊 Extracting structured portfolio entries...")
+    structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
+    st.success(f"✅ Portfolio enriched. {len(structured_portfolio)} entries structured.")
+
+    st.subheader("📦 Portfolio Snapshot")
+    for entry in structured_portfolio[:5]:
+        st.markdown(f"- **{entry['name']}**: {entry['description']}")
 
     st.info("🧠 Generating VC profile embedding...")
+    portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
     vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
     if isinstance(vc_embedding, list):
         st.success(f"✅ VC embedding created. Vector length: {len(vc_embedding)}")
     else:
         st.error(vc_embedding)
+
+    st.info("📚 Interpreting VC strategic thesis...")
+    strategy_summary = interpreter.interpret_strategy("VC Firm", vc_site_text, structured_portfolio)
+    st.subheader("🧠 Interpreted Strategy")
+    st.markdown(strategy_summary)
