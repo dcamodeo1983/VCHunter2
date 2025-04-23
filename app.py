@@ -3,6 +3,7 @@
 import streamlit as st
 import os
 import pandas as pd
+import json
 from dotenv import load_dotenv
 from agents.founder_doc_reader_agent import FounderDocReaderAgent
 from agents.llm_summarizer_agent import LLMSummarizerAgent
@@ -11,6 +12,18 @@ from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
+
+VC_PROFILE_PATH = "outputs/vc_profiles.json"
+
+def load_vc_profiles():
+    if os.path.exists(VC_PROFILE_PATH):
+        with open(VC_PROFILE_PATH, "r") as f:
+            return json.load(f)
+    return []
+
+def save_vc_profiles(profiles):
+    with open(VC_PROFILE_PATH, "w") as f:
+        json.dump(profiles, f, indent=2)
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
@@ -89,7 +102,8 @@ if vc_csv:
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
             if strategy_summary:
-                lines = strategy_summary.split("\n")
+                lines = strategy_summary.split("
+")
                 for line in lines:
                     if line.lower().startswith("category"):
                         st.markdown(f"### 🧠 Strategic Identity")
@@ -99,3 +113,21 @@ if vc_csv:
                         st.markdown(f"**Motivational Signals:** {line.replace('Motivational Signals:', '').strip()}")
                     else:
                         st.markdown(line)
+
+                # Save VC profile
+                vc_profile = {
+                    "name": url.split("//")[-1].replace("www.", ""),
+                    "url": url,
+                    "embedding": vc_embedding,
+                    "portfolio_size": len(structured_portfolio),
+                    "strategy_summary": strategy_summary,
+                    "category": None,
+                    "motivational_signals": [],
+                    "cluster_id": None,
+                    "coordinates": [None, None]
+                }
+
+                cached_profiles = load_vc_profiles()
+                cached_profiles = [p for p in cached_profiles if p['url'] != url]  # deduplicate
+                cached_profiles.append(vc_profile)
+                save_vc_profiles(cached_profiles)
