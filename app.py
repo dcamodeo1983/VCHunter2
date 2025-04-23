@@ -72,7 +72,13 @@ if vc_csv:
             vc_site_text = scraper.scrape_text(url)
 
             st.info("Extracting portfolio entries...")
-            structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
+            portfolio_links = scraper.find_portfolio_links(url)
+            if portfolio_links:
+                st.info(f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping...")
+                structured_portfolio = enricher.extract_portfolio_entries_from_pages(portfolio_links)
+            else:
+                st.warning("⚠️ No portfolio page links found. Using homepage instead.")
+                structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
             st.info("Embedding profile...")
@@ -86,7 +92,7 @@ if vc_csv:
                 lines = strategy_summary.split("\n")
                 for line in lines:
                     if line.lower().startswith("category"):
-                        st.markdown(f"### 📂 {line}")
+                        st.markdown(f"### 🧠 Strategic Identity")
                     elif line.lower().startswith("rationale"):
                         st.markdown(f"**Rationale:** {line.replace('Rationale:', '').strip()}")
                     elif line.lower().startswith("motivational signals"):
