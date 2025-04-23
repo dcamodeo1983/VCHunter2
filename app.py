@@ -18,10 +18,14 @@ from utils.utils import clean_text, count_tokens, embed_vc_profile
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
 def load_vc_profiles():
-    if os.path.exists(VC_PROFILE_PATH):
-        with open(VC_PROFILE_PATH, "r") as f:
-            return json.load(f)
+    try:
+        if os.path.exists(VC_PROFILE_PATH):
+            with open(VC_PROFILE_PATH, "r") as f:
+                return json.load(f)
+    except json.JSONDecodeError:
+        return []
     return []
+
 
 def save_vc_profiles(profiles):
     with open(VC_PROFILE_PATH, "w") as f:
