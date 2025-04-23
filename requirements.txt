@@ -1,6 +1,8 @@
 streamlit
-openai
+openai>=1.0.0
 python-dotenv
 PyPDF2
 python-docx
 tiktoken
+
+
