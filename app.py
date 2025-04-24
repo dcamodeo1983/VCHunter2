@@ -102,8 +102,7 @@ if vc_csv:
             else:
                 st.warning("⚠️ No portfolio page links found. Using homepage instead.")
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
-count = len(structured_portfolio)
-st.markdown(f"✅ {count} portfolio entries found.")
+            st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
             st.info("Embedding profile...")
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
