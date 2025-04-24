@@ -34,14 +34,21 @@ class CategorizerAgent:
             ])
 
             prompt = f"""
-You are a strategic VC analyst. Based on the following firms and their strategy summaries, name this cluster and explain what unites them:
+You are a seasoned venture capital partner tasked with interpreting clusters of similar VC firms.
 
-Firms:
-{firm_summaries}
+You are given a list of firms in this cluster along with their investment strategies.
 
-Respond in this format:
-Category: <short label>
-Rationale: <1-2 sentence explanation>
+Your task is to:
+- Assign a meaningful, founder-friendly name to this cluster
+- Summarize what connects these firms (e.g., frontier tech, SaaS scalability, deep sector insight)
+- Suggest which types of startups are a good fit
+- Keep it short and crisp — this will appear in a UI for startup founders
+
+Format:
+Category: [Short label]
+Rationale: [1–2 sentence explanation]
+Suggested Fit: [What kind of founders should consider this group]
+
 """
             try:
                 response = self.client.chat.completions.create(
