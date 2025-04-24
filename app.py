@@ -185,3 +185,10 @@ if fig:
     st.plotly_chart(fig)
 else:
     st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
+
+# === Option to Regenerate Axis Labels ===
+if st.button("🔁 Regenerate Axis Labels from Categories"):
+    viz_agent = VisualizationAgent(api_key=openai_api_key)
+    viz_agent.regenerate_axis_labels()
+    st.success("Axis labels updated using DimensionExplainerAgent.")
+
