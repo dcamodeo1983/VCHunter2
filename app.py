@@ -13,6 +13,7 @@ from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from agents.clustering_agent import ClusteringAgent
 from agents.categorizer_agent import CategorizerAgent
+from agents.visualization_agent import VisualizationAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
@@ -154,3 +155,11 @@ if st.button("Run Clustering + Categorization"):
 
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
+# === Visualize VC Landscape ===
+st.divider()
+st.subheader("📊 VC Landscape Map")
+
+viz_agent = VisualizationAgent()
+fig = viz_agent.generate_cluster_map()
+st.plotly_chart(fig)
