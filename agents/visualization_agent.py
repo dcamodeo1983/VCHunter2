@@ -34,10 +34,8 @@ class VisualizationAgent:
         for p in profiles:
             if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
                 tooltip = (
-                    f"{p['name']}
-"
-                    f"Category: {p.get('category', 'N/A')}
-"
+                    f"{p['name']}\n"
+                    f"Category: {p.get('category', 'N/A')}\n"
                     f"Portfolio Size: {p.get('portfolio_size', 0)}"
                 )
                 strategy = p.get("strategy_summary", "")
