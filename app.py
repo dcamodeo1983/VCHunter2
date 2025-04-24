@@ -102,7 +102,11 @@ if uploaded_file:
                 st.text(survey_summary)
 
         if survey_summary:
-            combined_input = f"{summary.strip()}
+            if survey_summary:
+                combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
+            else:
+                combined_input = summary.strip()
+
 
 {survey_summary.strip()}"
         else:
