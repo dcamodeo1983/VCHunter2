@@ -1,5 +1,5 @@
-# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
+# VC Hunter Streamlit UI Upgrade (Final with CSV Upload and Survey Matching)
 import streamlit as st
 import os
 import pandas as pd
@@ -100,12 +100,7 @@ if uploaded_file:
                 st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        if survey_summary:
-            combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
-
-{survey_summary.strip()}"
-        else:
-            combined_input = summary.strip()
+        combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
 
         st.info("🔗 Creating embedding...")
         founder_embedding = embedder.embed_text(combined_input)
@@ -114,3 +109,12 @@ if uploaded_file:
         else:
             st.error(founder_embedding)
             founder_embedding = None
+
+# === Upload CSV with VC URLs
+st.divider()
+st.header("📥 Upload CSV of VC URLs")
+vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
+if vc_csv:
+    df = pd.read_csv(vc_csv)
+    urls = df['url'].dropna().unique().tolist()
+    st.success(f"✅ Loaded {len(urls)} VC URLs")
