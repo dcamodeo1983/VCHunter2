@@ -28,7 +28,7 @@ Portfolio Companies:
 {formatted_entries[:3000]}
 """
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo"
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4,
                 max_tokens=750
