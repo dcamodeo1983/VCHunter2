@@ -9,31 +9,38 @@ class VCStrategicInterpreterAgent:
             formatted_entries = "\n".join(
                 [f"- {entry['name']}: {entry['description']}" for entry in portfolio_entries if entry.get('name') and entry.get('description')]
             )
+            
             prompt = f"""
-You are a senior VC analyst tasked with analyzing a venture capital firm's strategic thesis. Based on the firm's website and portfolio company list, describe the following:
+You are a senior venture capital analyst tasked with interpreting a VC firm’s strategic thesis.
 
-1. What category best describes the firm's investment behavior?
-2. What are the underlying motivations or patterns you observe?
-3. Are they contrarian, domain-focused, mission-driven, or thesis-led?
-4. Provide a list of 2-5 strategic signals or investment themes that define the firm's worldview.
+Your goal is to summarize how the firm positions itself in the investment ecosystem using:
+- Website language
+- Types of portfolio companies
+- Any observable themes or biases
 
-Respond in this format:
-Category: <label>
-Rationale: <3-5 sentences>
-Motivational Signals: <comma-separated list>
+You must answer as if advising a startup founder evaluating this VC.
 
 Firm Name: {vc_name}
-Website Summary: {site_text[:1000]}
+
+Website Summary:
+{site_text[:1000]}
+
 Portfolio Companies:
 {formatted_entries[:3000]}
+
+Respond in this format:
+Category: <Short high-level label>
+Rationale: <3–5 sentences on their investing personality and thesis>
+Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-stage SaaS, national resilience>
 """
+
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo"
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4,
                 max_tokens=750
             )
             return response.choices[0].message.content.strip()
+
         except Exception as e:
             return f"[Error during strategy interpretation: {e}]"
-
