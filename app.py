@@ -1,4 +1,3 @@
-
 # VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
@@ -102,13 +101,7 @@ if uploaded_file:
                 st.text(survey_summary)
 
         if survey_summary:
-            if survey_summary:
-                combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
-            else:
-                combined_input = summary.strip()
-
-
-{survey_summary.strip()}"
+            combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
         else:
             combined_input = summary.strip()
 
@@ -133,10 +126,8 @@ if founder_embedding:
 
     for match in top_matches:
         st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
-        st.markdown(f"**Why This Firm Might Be a Good Match:**
-{match['why']}")
-        st.markdown(f"**Suggested Messaging Themes:**
-{match['message']}")
+        st.markdown(f"**Why This Firm Might Be a Good Match:**\n{match['why']}")
+        st.markdown(f"**Suggested Messaging Themes:**\n{match['message']}")
 
 # === Visualization ===
 st.divider()
