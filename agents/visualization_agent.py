@@ -51,6 +51,10 @@ class VisualizationAgent:
                     "tooltip": tooltip
                 })
 
+        if not data:
+            print("⚠️ No data with valid coordinates to plot.")
+            return None
+
         df = pd.DataFrame(data)
 
         fig = px.scatter(
