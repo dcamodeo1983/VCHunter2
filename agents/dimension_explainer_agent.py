@@ -1,6 +1,6 @@
-from openai import OpenAI
 import json
 import os
+from openai import OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
@@ -53,15 +53,11 @@ Dimension 2: <label> — <brief description>
             )
             result = response.choices[0].message.content.strip()
 
-            # Parse result to dict
             lines = result.splitlines()
             labels = {
                 "x_label": lines[0].replace("Dimension 1:", "").split("—")[0].strip(),
-                "x_desc": lines[0].split("—")[1].strip() if "—" in lines[0] else "",
-                "y_label": lines[1].replace("Dimension 2:", "").split("—")[0].strip(),
-                "y_desc": lines[1].split("—")[1].strip() if "—" in lines[1] else ""
+                "y_label": lines[1].replace("Dimension 2:", "").split("—")[0].strip()
             }
-
             self.save_labels(labels)
             return labels
 
