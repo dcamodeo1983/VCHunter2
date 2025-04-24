@@ -1,13 +1,14 @@
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 import json
 import os
-from openai import OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
-DIMENSION_LABELS_PATH = "outputs/pca_dimension_labels.json"
 
-class DimensionNamerAgent:
-    def __init__(self, api_key):
-        self.client = OpenAI(api_key=api_key)
+class ClusteringAgent:
+    def __init__(self, n_clusters=5):
+        self.n_clusters = n_clusters
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -15,52 +16,30 @@ class DimensionNamerAgent:
                 return json.load(f)
         return []
 
-    def name_pca_axes(self):
+    def save_profiles(self, profiles):
+        with open(VC_PROFILE_PATH, "w") as f:
+            json.dump(profiles, f, indent=2)
+
+    def cluster(self):
         profiles = self.load_profiles()
-        df = [
-            (p["name"], p["coordinates"], p["strategy_summary"])
-            for p in profiles
-            if p.get("coordinates") and p.get("strategy_summary")
-        ]
+        embeddings = [p['embedding'] for p in profiles if p.get('embedding') and isinstance(p['embedding'], list)]
 
-        if not df:
-            return {}
+        if not embeddings:
+            raise ValueError("No valid embeddings found.")
 
-        dimension_labels = {}
+        embeddings = np.array(embeddings)
 
-        for i in range(2):  # For PC1 and PC2
-            extremes = sorted(df, key=lambda x: x[1][i])
-            low_end = extremes[:5]
-            high_end = extremes[-5:]
+        # PCA for 2D coordinates (for visualization)
+        pca = PCA(n_components=2)
+        coordinates = pca.fit_transform(embeddings)
 
-            low_summary = "\n".join([f"- {x[0]}: {x[2]}" for x in low_end])
-            high_summary = "\n".join([f"- {x[0]}: {x[2]}" for x in high_end])
+        # KMeans clustering on full 1536-D embeddings
+        kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
+        cluster_ids = kmeans.fit_predict(embeddings)
 
-            prompt = f"""
-You are a strategic analyst. Based on the summaries of VCs at opposite ends of this dimension:
+        for i, profile in enumerate(profiles):
+            profile["coordinates"] = coordinates[i].tolist()
+            profile["cluster_id"] = int(cluster_ids[i])
 
-High end:
-{high_summary}
-
-Low end:
-{low_summary}
-
-What does this dimension represent? Return your answer as a short axis label and a one-sentence rationale.
-Format:
-AxisLabel: <label>
-Rationale: <reason>
-"""
-
-            response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-                max_tokens=200
-            )
-            content = response.choices[0].message.content.strip()
-            dimension_labels[f"PC{i+1}"] = content
-
-        with open(DIMENSION_LABELS_PATH, "w") as f:
-            json.dump(dimension_labels, f, indent=2)
-
-        return dimension_labels
+        self.save_profiles(profiles)
+        return profiles
