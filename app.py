@@ -1,3 +1,4 @@
+
 # VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
@@ -100,7 +101,13 @@ if uploaded_file:
                 st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
+        if survey_summary:
+            combined_input = f"{summary.strip()}
+
+{survey_summary.strip()}"
+        else:
+            combined_input = summary.strip()
+
         st.info("🔗 Creating embedding...")
         founder_embedding = embedder.embed_text(combined_input)
         if isinstance(founder_embedding, list):
@@ -109,23 +116,26 @@ if uploaded_file:
             st.error(founder_embedding)
             founder_embedding = None
 
-# === Match to VCs ===
+# === Match to VCs
 if founder_embedding:
     st.divider()
     st.subheader("🔍 Find Your Top VC Matches")
+
     st.markdown("🧠 VC match scores are based on semantic similarity between your concept and each firm's strategy.")
     st.markdown("The following list shows your top matches along with reasons why they may be aligned with your business.")
 
-    matcher = FounderMatcherAgent(founder_embedding)
+    matcher = FounderMatcherAgent()
     vc_profiles = load_vc_profiles()
     top_matches = matcher.match(founder_embedding, vc_profiles, top_n=5)
 
     for match in top_matches:
         st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
-        st.markdown(f"**Why This Firm Might Be a Good Match:**\n{match['why']}")
-        st.markdown(f"**Suggested Messaging Themes:**\n{match['message']}")
+        st.markdown(f"**Why This Firm Might Be a Good Match:**
+{match['why']}")
+        st.markdown(f"**Suggested Messaging Themes:**
+{match['message']}")
 
-# === Visualization ===
+# === VC Visualization
 st.divider()
 st.subheader("📊 VC Landscape Map")
 
