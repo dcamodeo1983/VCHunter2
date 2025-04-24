@@ -17,10 +17,14 @@ class VisualizationAgent:
         return []
 
     def load_axis_labels(self):
+    try:
         if os.path.exists(DIMENSION_LABELS_PATH):
             with open(DIMENSION_LABELS_PATH, "r") as f:
                 return json.load(f)
-        return {"x_label": "Dimension 1", "y_label": "Dimension 2"}
+    except json.JSONDecodeError:
+        print("⚠️ Invalid or empty dimension_labels.json — using defaults.")
+    return {"x_label": "Dimension 1", "y_label": "Dimension 2"}
+
 
     def generate_cluster_map(self):
         profiles = self.load_profiles()
