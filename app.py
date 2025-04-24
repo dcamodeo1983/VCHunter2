@@ -107,7 +107,13 @@ if vc_csv:
             st.info("Embedding profile...")
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
             vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
-            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5] if isinstance(vc_embedding, list) else vc_embedding)
+
+            # 🔐 Check that the embedding is a valid list of floats
+            if not isinstance(vc_embedding, list) or not vc_embedding or not all(isinstance(x, (float, int)) for x in vc_embedding):
+                st.error(f"❌ Invalid embedding returned for {url}. Skipping this VC.")
+                continue
+
+            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5])
 
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
