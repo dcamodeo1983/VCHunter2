@@ -93,7 +93,10 @@ if vc_csv:
 
             st.info("Scraping site text...")
             vc_site_text = scraper.scrape_text(url)
+            st.write(f"📄 Scraped site text length: {len(vc_site_text)}")
+            st.text(vc_site_text[:500])  # preview the first 500 characters
 
+            
             st.info("Extracting portfolio entries...")
             portfolio_links = scraper.find_portfolio_links(url)
             if portfolio_links:
