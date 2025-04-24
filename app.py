@@ -1,4 +1,4 @@
-# VC Hunter Streamlit UI Upgrade (Narrative-Driven)
+# VC Hunter Streamlit UI Upgrade (Semantic-First)
 
 import streamlit as st
 import os
@@ -36,17 +36,14 @@ def save_vc_profiles(profiles):
     st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
-
 st.title("🧠 VC Hunter: Founder Intelligence Report")
-st.markdown("""
-Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs.
-""")
+st.markdown("Upload your startup concept to receive curated insights and a strategic match to venture capital firms.")
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
-# === Upload & Run ===
+# === Upload Founder Document ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 if uploaded_file:
     reader = FounderDocReaderAgent()
@@ -61,27 +58,26 @@ if uploaded_file:
         token_count = count_tokens(cleaned_text)
         st.success(f"✅ Document processed. ({token_count} tokens)")
 
-        st.info("🧠 Summarizing your concept using GPT...")
+        st.info("🧠 Summarizing your concept...")
         summary = summarizer.summarize(cleaned_text)
-        st.subheader("🧾 Extracted Document Text (Preview)")
+        st.subheader("🧾 Preview of Extracted Text")
         st.text(cleaned_text[:1000])
 
         st.header("📄 Startup Summary")
         st.markdown(f"> {summary}")
 
-        st.info("🔗 Creating embedding for downstream analysis...")
+        st.info("🔗 Creating embedding...")
         embedding = embedder.embed_text(summary)
         if isinstance(embedding, list):
             st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
         else:
             st.error(embedding)
 
-# === Batch VC Analysis Section ===
+# === VC Landscape Analysis ===
 st.divider()
 st.header("📥 Upload CSV of VC URLs")
 
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
-
 if vc_csv:
     df = pd.read_csv(vc_csv)
     urls = df['url'].dropna().unique().tolist()
@@ -95,100 +91,108 @@ if vc_csv:
 
             st.info("Scraping site text...")
             vc_site_text = scraper.scrape_text(url)
-            # 🛡️ Skip embedding if the scraped site text is too short
             if len(vc_site_text.strip()) < 100:
-                st.warning(f"⚠️ Skipping {url} due to very short or empty site content.")
+                st.warning(f"⚠️ Skipping {url} due to short or empty site text.")
                 continue
-            st.write(f"📄 Scraped site text length: {len(vc_site_text)}")
-            st.text(vc_site_text[:500])  # preview the first 500 characters
+            st.text(vc_site_text[:500])
 
-            
             st.info("Extracting portfolio entries...")
             portfolio_links = scraper.find_portfolio_links(url)
-            if portfolio_links:
-                st.info(f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping...")
-                structured_portfolio = enricher.extract_portfolio_entries_from_pages(portfolio_links)
-            else:
-                st.warning("⚠️ No portfolio page links found. Using homepage instead.")
-                structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
+            structured_portfolio = (
+                enricher.extract_portfolio_entries_from_pages(portfolio_links)
+                if portfolio_links else enricher.extract_portfolio_entries(vc_site_text)
+            )
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
-            st.info("Embedding profile...")
-            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
+            # 🧠 NEW: Run LLM interpreter FIRST
+            st.info("🧠 Interpreting strategy (LLM)...")
+            interpreter_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
-            # 🔐 Check that the embedding is a valid list of floats
-            if not isinstance(vc_embedding, list) or not vc_embedding or not all(isinstance(x, (float, int)) for x in vc_embedding):
-                st.error(f"❌ Invalid embedding returned for {url}. Skipping this VC.")
+            if not interpreter_summary or "Error" in interpreter_summary:
+                st.error(f"❌ Interpretation failed for {url}. Skipping.")
                 continue
 
-            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5])
+            st.info("📐 Embedding profile (enriched)...")
+            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, interpreter_summary, embedder)
 
-            st.info("Interpreting strategy...")
-            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
+            if not isinstance(vc_embedding, list) or not vc_embedding or not all(isinstance(x, (float, int)) for x in vc_embedding):
+                st.error(f"❌ Invalid embedding for {url}. Skipping.")
+                continue
 
-            if strategy_summary:
-                lines = strategy_summary.split("\n")
-                for line in lines:
-                    if line.lower().startswith("category"):
-                        st.markdown(f"### 🧠 Strategic Identity")
-                    elif line.lower().startswith("rationale"):
-                        st.markdown(f"**Rationale:** {line.replace('Rationale:', '').strip()}")
-                    elif line.lower().startswith("motivational signals"):
-                        st.markdown(f"**Motivational Signals:** {line.replace('Motivational Signals:', '').strip()}")
-                    else:
-                        st.markdown(line)
+            st.markdown("**Strategic Summary:**")
+            st.text(interpreter_summary)
 
-                # Save VC profile
-                vc_profile = {
-                    "name": url.split("//")[-1].replace("www.", ""),
-                    "url": url,
-                    "embedding": vc_embedding,
-                    "portfolio_size": len(structured_portfolio),
-                    "strategy_summary": strategy_summary,
-                    "category": None,
-                    "motivational_signals": [],
-                    "cluster_id": None,
-                    "coordinates": [None, None]
-                }
+            vc_profile = {
+                "name": url.split("//")[-1].replace("www.", ""),
+                "url": url,
+                "embedding": vc_embedding,
+                "portfolio_size": len(structured_portfolio),
+                "strategy_summary": interpreter_summary,
+                "category": None,
+                "motivational_signals": [],
+                "cluster_id": None,
+                "coordinates": [None, None]
+            }
 
-                cached_profiles = load_vc_profiles()
-                cached_profiles = [p for p in cached_profiles if p['url'] != url]  # deduplicate
-                cached_profiles.append(vc_profile)
-                save_vc_profiles(cached_profiles)
+            cached = load_vc_profiles()
+            cached = [p for p in cached if p['url'] != url]
+            cached.append(vc_profile)
+            save_vc_profiles(cached)
 
-# === Run Clustering + Categorization ===
+# === Clustering and Categorization ===
 st.divider()
 st.subheader("🧭 VC Landscape Categorization")
 
 if st.button("Run Clustering + Categorization"):
-    st.info("Clustering VC embeddings...")
+    st.info("🔄 Running clustering...")
     cluster_agent = ClusteringAgent(n_clusters=5)
-    clustered_profiles = cluster_agent.cluster()
-    st.success("Clustering complete.")
+    clustered = cluster_agent.cluster()
+    st.success("✅ Clustering complete.")
 
-    st.info("Categorizing each cluster...")
+    st.info("🏷 Assigning semantic categories...")
     categorize_agent = CategorizerAgent(api_key=openai_api_key)
-    categorized_profiles = categorize_agent.categorize_clusters()
-    st.success("Categorization complete.")
+    categorized = categorize_agent.categorize_clusters()
+    st.success("✅ Categorization complete.")
 
     st.balloons()
-    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+    st.success(f"🗂 {len(categorized)} VC profiles categorized and positioned.")
 
-# === Visualize VC Landscape ===
+# === Visualization ===
 st.divider()
 st.subheader("📊 VC Landscape Map")
 
-viz_agent = VisualizationAgent()
+viz_agent = VisualizationAgent(api_key=openai_api_key)
+
+if st.button("🔁 Regenerate Axis Labels (Optional)"):
+    viz_agent.regenerate_axis_labels()
+    st.success("🧠 PCA axis labels refreshed via LLM.")
+
 fig = viz_agent.generate_cluster_map()
 if fig:
+    labels = viz_agent.load_axis_labels()
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
     st.plotly_chart(fig)
 else:
-    st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
+    st.warning("No VC profiles found with valid cluster coordinates.")
 
-# === Option to Regenerate Axis Labels ===
-if st.button("🔁 Regenerate Axis Labels from Categories"):
-    viz_agent = VisualizationAgent(api_key=openai_api_key)
-    viz_agent.regenerate_axis_labels()
-    st.success("Axis labels updated using DimensionExplainerAgent.")
+# === Category Explorer
+st.divider()
+st.subheader("📚 Strategic VC Category Browser")
 
+profiles = load_vc_profiles()
+by_category = {}
+for p in profiles:
+    cat = (p.get("category") or "").split("\n")[0].replace("Category:", "").strip()
+    rationale = next((line for line in p.get("category", "").splitlines() if line.lower().startswith("rationale")), "")
+    example = p.get("name", "")
+    if cat not in by_category:
+        by_category[cat] = {"rationale": rationale, "examples": set()}
+    by_category[cat]["examples"].add(example)
+
+for cat, details in by_category.items():
+    st.markdown(f"### {cat}")
+    if details["rationale"]:
+        st.markdown(f"**Rationale:** {details['rationale']}")
+    st.markdown(f"**Example Firms:** {', '.join(sorted(details['examples']))}")
