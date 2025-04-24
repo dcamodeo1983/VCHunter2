@@ -25,47 +25,35 @@ class VisualizationAgent:
             print("⚠️ Invalid or empty dimension_labels.json — using defaults.")
         return {"x_label": "Dimension 1", "y_label": "Dimension 2"}
 
-    def generate_cluster_map(self):
-        profiles = self.load_profiles()
-        labels = self.load_axis_labels()
-        data = []
+def generate_cluster_map(self):
+    profiles = self.load_profiles()
+    labels = self.load_axis_labels()
+    data = []
 
-        for p in profiles:
-            if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
-                tooltip = f"{p['name']}\nCategory: {p.get('category', 'N/A')}\nPortfolio Size: {p.get('portfolio_size', 0)}"
-                strategy = p.get("strategy_summary", "")
-                rationale_line = next((line for line in strategy.splitlines() if line.lower().startswith("rationale")), "")
-                if rationale_line:
-                    tooltip += f"\n{rationale_line.strip()}"
+    for p in profiles:
+        if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
+            rationale_line = next((line for line in p.get("category", "").splitlines() if line.lower().startswith("rationale")), "")
+            data.append({
+                "name": p["name"],
+                "x": p["coordinates"][0],
+                "y": p["coordinates"][1],
+                "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip(),
+                "portfolio_size": p.get("portfolio_size", 0),
+                "rationale": rationale_line.strip()
+            })
 
-                data.append({
-                    "name": p["name"],
-                    "x": p["coordinates"][0],
-                    "y": p["coordinates"][1],
-                    "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip(),
-                    "tooltip": tooltip
-                })
+    if not data:
+        return None
 
-        if not data:
-            return None
+    df = pd.DataFrame(data)
 
-        df = pd.DataFrame(data)
+    fig = px.scatter(
+        df,
+        x="x",
+        y="y",
+        color="category",
+        hover_name="name",
+        custom_data=["name", "category", "portfolio_size", "rationale"],
+        title="🧭 VC Landscape by Strategic Identity",
+        labels={"x": labels.get("x_label", "Dimension 1"), "y": labels.get("y_label", "Dimension
 
-        fig = px.scatter(
-            df,
-            x="x",
-            y="y",
-            color="category",
-            hover_name="name",
-            hover_data={"x": False, "y": False, "tooltip": True},
-            title="🧭 VC Landscape by Strategic Identity",
-            labels={"x": labels["x_label"], "y": labels["y_label"]},
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            width=950,
-            height=600
-        )
-
-        fig.update_traces(marker=dict(size=10, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')))
-        fig.update_layout(legend_title_text='Cluster Category')
-
-        return fig
