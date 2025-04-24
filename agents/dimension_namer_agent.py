@@ -1,14 +1,13 @@
-import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
+from openai import OpenAI
 import json
 import os
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
+DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 
-class ClusteringAgent:
-    def __init__(self, n_clusters=5):
-        self.n_clusters = n_clusters
+class DimensionExplainerAgent:
+    def __init__(self, api_key):
+        self.client = OpenAI(api_key=api_key)
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -16,30 +15,55 @@ class ClusteringAgent:
                 return json.load(f)
         return []
 
-    def save_profiles(self, profiles):
-        with open(VC_PROFILE_PATH, "w") as f:
-            json.dump(profiles, f, indent=2)
+    def save_labels(self, labels):
+        with open(DIMENSION_LABELS_PATH, "w") as f:
+            json.dump(labels, f, indent=2)
 
-    def cluster(self):
+    def generate_axis_labels(self):
         profiles = self.load_profiles()
-        embeddings = [p['embedding'] for p in profiles if p.get('embedding') and isinstance(p['embedding'], list)]
+        summaries = []
 
-        if not embeddings:
-            raise ValueError("No valid embeddings found.")
+        for p in profiles:
+            category = (p.get("category") or "Unknown").split("\n")[0].replace("Category:", "").strip()
+            rationale_line = next((line for line in p.get("strategy_summary", "").splitlines() if line.lower().startswith("rationale")), "")
+            summaries.append(f"{p['name']}: {category} — {rationale_line.strip()}")
 
-        embeddings = np.array(embeddings)
+        prompt = f"""
+You are an expert data analyst and VC strategist reviewing the result of a PCA dimensionality reduction and clustering analysis of venture capital firms.
 
-        # PCA for 2D coordinates (for visualization)
-        pca = PCA(n_components=2)
-        coordinates = pca.fit_transform(embeddings)
+Each point represents a VC firm. The x and y dimensions are latent principal components derived from the embedding of their investment behavior and stated theses.
 
-        # KMeans clustering on full 1536-D embeddings
-        kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
-        cluster_ids = kmeans.fit_predict(embeddings)
+Below is a sample of the categorized firms and their rationale:
 
-        for i, profile in enumerate(profiles):
-            profile["coordinates"] = coordinates[i].tolist()
-            profile["cluster_id"] = int(cluster_ids[i])
+{chr(10).join(summaries[:30])}
 
-        self.save_profiles(profiles)
-        return profiles
+Based on the firms and how they’re grouped, suggest short, human-readable names for the two principal axes that appear on a 2D visualization.
+
+Format your response exactly like this:
+Dimension 1: <label> — <brief description>
+Dimension 2: <label> — <brief description>
+"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=500
+            )
+            result = response.choices[0].message.content.strip()
+
+            # Parse result to dict
+            lines = result.splitlines()
+            labels = {
+                "x_label": lines[0].replace("Dimension 1:", "").split("—")[0].strip(),
+                "x_desc": lines[0].split("—")[1].strip() if "—" in lines[0] else "",
+                "y_label": lines[1].replace("Dimension 2:", "").split("—")[0].strip(),
+                "y_desc": lines[1].split("—")[1].strip() if "—" in lines[1] else ""
+            }
+
+            self.save_labels(labels)
+            return labels
+
+        except Exception as e:
+            return {"x_label": "Dimension 1", "y_label": "Dimension 2", "error": str(e)}
