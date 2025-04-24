@@ -40,6 +40,7 @@ class VisualizationAgent:
             x="x",
             y="y",
             color="category",
+            color_discrete_sequence=px.colors.qualitative.Bold,
             hover_name="name",
             title="VC Landscape by Strategic Category",
             labels={"x": "Dimension 1", "y": "Dimension 2"},
