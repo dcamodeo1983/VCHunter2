@@ -9,4 +9,8 @@ requests
 beautifulsoup4
 scikit-learn
 plotly
+pymupdf>=1.23.22
+python-docx>=1.1.2
+PyPDF2>=3.0.1
+
 
