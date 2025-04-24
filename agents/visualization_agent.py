@@ -1,8 +1,8 @@
+
 import json
 import os
 import plotly.express as px
 import pandas as pd
-from agents.dimension_explainer_agent import DimensionExplainerAgent
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
@@ -23,37 +23,31 @@ class VisualizationAgent:
                 with open(DIMENSION_LABELS_PATH, "r") as f:
                     return json.load(f)
         except json.JSONDecodeError:
-            print("⚠️ Invalid or empty dimension_labels.json — using defaults.")
-        return {"x_label": "Dimension 1", "y_label": "Dimension 2"}
+            pass
+        return {"x_label": "Dimension 1", "y_label": "Dimension 2", "x_description": "", "y_description": ""}
 
-    def regenerate_axis_labels(self):
-        if not self.api_key:
-            return {"x_label": "Dimension 1", "y_label": "Dimension 2"}
-        agent = DimensionExplainerAgent(api_key=self.api_key)
-        return agent.generate_axis_labels()
-
-    def generate_cluster_map(self, force_refresh=False):
-        if force_refresh and self.api_key:
-            self.regenerate_axis_labels()
-
+    def generate_cluster_map(self, founder_embedding_2d=None):
         profiles = self.load_profiles()
         labels = self.load_axis_labels()
         data = []
 
         for p in profiles:
             if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
-                rationale_line = next((line for line in p.get("category", "").splitlines() if line.lower().startswith("rationale")), "")
+                tooltip = f"{p['name']}
+Category: {p.get('category', 'N/A')}
+Portfolio Size: {p.get('portfolio_size', 0)}"
+                strategy = p.get("strategy_summary", "")
+                rationale_line = next((line for line in strategy.splitlines() if line.lower().startswith("rationale")), "")
+                if rationale_line:
+                    tooltip += f"\n{rationale_line.strip()}"
+
                 data.append({
                     "name": p["name"],
                     "x": p["coordinates"][0],
                     "y": p["coordinates"][1],
                     "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip(),
-                    "portfolio_size": p.get("portfolio_size", 0),
-                    "rationale": rationale_line.strip()
+                    "tooltip": tooltip
                 })
-
-        if not data:
-            return None
 
         df = pd.DataFrame(data)
 
@@ -63,24 +57,27 @@ class VisualizationAgent:
             y="y",
             color="category",
             hover_name="name",
-            custom_data=["name", "category", "portfolio_size", "rationale"],
+            hover_data={"tooltip": True},
+            labels={"x": labels["x_label"], "y": labels["y_label"]},
             title="🧭 VC Landscape by Strategic Identity",
-            labels={
-                "x": labels.get("x_label", "Dimension 1"),
-                "y": labels.get("y_label", "Dimension 2")
-            },
             color_discrete_sequence=px.colors.qualitative.Safe,
             width=950,
             height=600
         )
 
-        fig.update_traces(
-            marker=dict(size=10, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')),
-            hovertemplate="<b>%{customdata[0]}</b><br>" +
-                          "Category: %{customdata[1]}<br>" +
-                          "Portfolio Size: %{customdata[2]}<br>" +
-                          "%{customdata[3]}<extra></extra>"
-        )
-
+        fig.update_traces(marker=dict(size=10, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')))
         fig.update_layout(legend_title_text='Cluster Category')
+
+        if founder_embedding_2d:
+            fig.add_scatter(
+                x=[founder_embedding_2d[0]],
+                y=[founder_embedding_2d[1]],
+                mode="markers+text",
+                name="Your Startup",
+                marker=dict(symbol='star', size=16, color='black'),
+                text=["⭐ You"],
+                textposition="top center",
+                showlegend=True
+            )
+
         return fig
