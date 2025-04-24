@@ -16,37 +16,45 @@ class VisualizationAgent:
         return []
 
     def generate_cluster_map(self):
-        profiles = self.load_profiles()
-        data = []
+    profiles = self.load_profiles()
+    data = []
 
-        for p in profiles:
-            coords = p.get("coordinates")
-            if coords and isinstance(coords, list) and len(coords) == 2 and all(isinstance(c, (int, float)) for c in coords):
-                data.append({
-                    "name": p.get("name", "Unnamed VC"),
-                    "x": coords[0],
-                    "y": coords[1],
-                    "cluster_id": p.get("cluster_id"),
-                    "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip()
-                })
+    for p in profiles:
+        coords = p.get("coordinates")
+        if coords and isinstance(coords, list) and len(coords) == 2 and all(isinstance(c, (int, float)) for c in coords):
+            category = (p.get("category") or "").split("\n")[0].replace("Category:", "").strip()
+            rationale = ""
+            if p.get("category") and "Rationale:" in p["category"]:
+                rationale = p["category"].split("Rationale:")[-1].strip()
 
-        if not data:
-            return None
+            data.append({
+                "name": p.get("name", "Unnamed VC"),
+                "x": coords[0],
+                "y": coords[1],
+                "cluster_id": p.get("cluster_id"),
+                "category": category,
+                "rationale": rationale
+            })
 
-        df = pd.DataFrame(data)
+    if not data:
+        return None
 
-        fig = px.scatter(
-            df,
-            x="x",
-            y="y",
-            color="category",
-            color_discrete_sequence=px.colors.qualitative.Bold,
-            hover_name="name",
-            title="VC Landscape by Strategic Category",
-            labels={"x": "Dimension 1", "y": "Dimension 2"},
-            width=900,
-            height=600
-        )
+    df = pd.DataFrame(data)
 
-        fig.update_traces(marker=dict(size=10, opacity=0.7))
-        return fig
+    fig = px.scatter(
+        df,
+        x="x",
+        y="y",
+        color="category",
+        hover_name="name",
+        hover_data=["rationale"],
+        title="VC Landscape by Strategic Category",
+        labels={"x": "Dimension 1", "y": "Dimension 2"},
+        width=900,
+        height=600,
+        color_discrete_sequence=px.colors.qualitative.Bold  # 🌈 High-contrast palette
+    )
+
+    fig.update_traces(marker=dict(size=10, opacity=0.8))
+    return fig
+
