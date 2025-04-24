@@ -1,7 +1,6 @@
+from openai import OpenAI
 import json
 import os
-from openai import OpenAI
-from collections import defaultdict
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -21,16 +20,14 @@ class CategorizerAgent:
 
     def categorize_clusters(self):
         profiles = self.load_profiles()
-        clusters = defaultdict(list)
+        cluster_ids = sorted(set(p["cluster_id"] for p in profiles if p.get("cluster_id") is not None))
 
-        for p in profiles:
-            if p.get("cluster_id") is not None:
-                clusters[p["cluster_id"]].append(p)
+        for cluster_id in cluster_ids:
+            cluster_profiles = [p for p in profiles if p["cluster_id"] == cluster_id]
 
-        for cluster_id, members in clusters.items():
-            firm_summaries = "\n".join([
-                f"- {m['name']}: {m['strategy_summary'].replace('\\n', ' ')}"
-                for m in members if m.get("strategy_summary")
+            summarized_vcs = "\n".join([
+                f"- {p.get('name', 'Unnamed VC')}: {p.get('strategy_summary', 'No summary')[:250]}"
+                for p in cluster_profiles
             ])
 
             prompt = f"""
@@ -53,22 +50,23 @@ Format your answer like this:
 Category: <short, intuitive label>
 Rationale: <1–2 sentences explaining the common theme>
 Suggested Fit: <1 sentence on what kind of startups or founders this group is right for>
-
-
 """
+
             try:
                 response = self.client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=0.4,
-                    max_tokens=300
+                    temperature=0.5,
+                    max_tokens=500
                 )
                 result = response.choices[0].message.content.strip()
-                for m in members:
-                    m["category"] = result
+
+                for profile in cluster_profiles:
+                    profile["category"] = result
+
             except Exception as e:
-                for m in members:
-                    m["category"] = f"[Error: {e}]"
+                for profile in cluster_profiles:
+                    profile["category"] = f"[Error during categorization: {e}]"
 
         self.save_profiles(profiles)
         return profiles
