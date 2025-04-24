@@ -128,10 +128,8 @@ if founder_embedding:
 
     for match in top_matches:
         st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
-        st.markdown(f"**Why This Firm Might Be a Good Match:**
-{match['why']}")
-        st.markdown(f"**Suggested Messaging Themes:**
-{match['message']}")
+        st.markdown(f"**Why This Firm Might Be a Good Match:**\n\n{match['why']}")
+        st.markdown(f"**Suggested Messaging Themes:**\n\n{match['message']}")
 
 # === VC Visualization
 st.divider()
