@@ -11,7 +11,9 @@ def count_tokens(text, model="gpt-4"):
 
 def embed_vc_profile(site_text, portfolio_text, embedder):
     try:
-        combined = site_text.strip() + "\n\n" + portfolio_text.strip()
+        combined = (site_text.strip() + "\n\n" + portfolio_text.strip())[:16000]
+        if not combined.strip():
+            return "[Error: Combined text is empty]"
         embedding = embedder.embed_text(combined)
         if isinstance(embedding, list) and all(isinstance(x, (float, int)) for x in embedding):
             return embedding
@@ -19,8 +21,9 @@ def embed_vc_profile(site_text, portfolio_text, embedder):
             print("❌ Invalid embedding response:", embedding)
             return None
     except Exception as e:
-        print(f"❌ Exception during embedding: {e}")
+        print(f"❌ Exception during embedding: {repr(e)}")
         return None
+
 
 
 
