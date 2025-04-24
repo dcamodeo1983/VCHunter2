@@ -57,3 +57,24 @@ def generate_cluster_map(self):
         title="🧭 VC Landscape by Strategic Identity",
         labels={"x": labels.get("x_label", "Dimension 1"), "y": labels.get("y_label", "Dimension
 
+# === VC Category Summary Explorer ===
+st.divider()
+st.subheader("📚 Strategic VC Categories")
+
+profiles = load_vc_profiles()
+by_category = {}
+for p in profiles:
+    cat = (p.get("category") or "").split("\n")[0].replace("Category:", "").strip()
+    rationale = next((line for line in p.get("category", "").splitlines() if line.lower().startswith("rationale")), "")
+    example = p.get("name", "")
+    if cat not in by_category:
+        by_category[cat] = {"rationale": rationale, "examples": set()}
+    by_category[cat]["examples"].add(example)
+
+for cat, details in by_category.items():
+    st.markdown(f"### {cat}")
+    if details["rationale"]:
+        st.markdown(f"**Rationale:** {details['rationale']}")
+    st.markdown(f"**Example Firms:** {', '.join(sorted(details['examples']))}")
+
+
