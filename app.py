@@ -173,6 +173,3 @@ else:
         st.plotly_chart(fig)
     else:
         st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
-if fig:
-    st.plotly_chart(fig)
-else:
