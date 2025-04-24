@@ -33,9 +33,13 @@ class VisualizationAgent:
 
         for p in profiles:
             if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
-                tooltip = f"{p['name']}
-Category: {p.get('category', 'N/A')}
-Portfolio Size: {p.get('portfolio_size', 0)}"
+                tooltip = (
+                    f"{p['name']}
+"
+                    f"Category: {p.get('category', 'N/A')}
+"
+                    f"Portfolio Size: {p.get('portfolio_size', 0)}"
+                )
                 strategy = p.get("strategy_summary", "")
                 rationale_line = next((line for line in strategy.splitlines() if line.lower().startswith("rationale")), "")
                 if rationale_line:
