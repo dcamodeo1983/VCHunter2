@@ -1,4 +1,3 @@
-
 # VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
@@ -116,7 +115,7 @@ if uploaded_file:
             st.error(founder_embedding)
             founder_embedding = None
 
-# === Match to VCs
+# === Match to VCs ===
 if founder_embedding:
     st.divider()
     st.subheader("🔍 Find Your Top VC Matches")
@@ -124,7 +123,7 @@ if founder_embedding:
     st.markdown("🧠 VC match scores are based on semantic similarity between your concept and each firm's strategy.")
     st.markdown("The following list shows your top matches along with reasons why they may be aligned with your business.")
 
-    matcher = FounderMatcherAgent()
+    matcher = FounderMatcherAgent(founder_embedding)
     vc_profiles = load_vc_profiles()
     top_matches = matcher.match(founder_embedding, vc_profiles, top_n=5)
 
