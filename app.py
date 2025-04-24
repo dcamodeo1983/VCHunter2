@@ -93,6 +93,10 @@ if vc_csv:
 
             st.info("Scraping site text...")
             vc_site_text = scraper.scrape_text(url)
+            # 🛡️ Skip embedding if the scraped site text is too short
+            if len(vc_site_text.strip()) < 100:
+                st.warning(f"⚠️ Skipping {url} due to very short or empty site content.")
+                continue
             st.write(f"📄 Scraped site text length: {len(vc_site_text)}")
             st.text(vc_site_text[:500])  # preview the first 500 characters
 
