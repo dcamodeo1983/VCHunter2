@@ -7,12 +7,26 @@ class LLMSummarizerAgent:
     def summarize(self, text):
         try:
             prompt = f"""
-You are a venture capital analyst evaluating startup submissions. Based on the provided founder document, summarize the company’s goals, value proposition, and business model. Use terminology common to the VC industry, and emphasize key themes such as defensibility, differentiation, go-to-market strategy, and scalability.
+You are a startup analyst at a venture capital firm.
 
-If applicable, highlight any unique strategies, moats, or competitive advantages that emerge from the material. If there are gaps in the information provided that limit understanding of the opportunity, raise specific questions a VC might ask to complete the picture.
+A founder has submitted the following white paper or concept document for investment consideration. Your task is to:
+- Summarize what the company is building and why
+- Highlight the core value proposition
+- Infer business strategy including go to market, and possible moats.  
+- Describe the intended market, customer, or user
+- Note any standout features (tech, business model, traction)
+- Identify gaps or ambiguities in the information
+- Note an key financial information or proof of traction
 
-Founder Document:
-{text}
+Be concise but informative. Write in a tone that helps other VC colleagues understand the opportunity clearly and quickly.
+
+Format:
+Summary:
+[Concise narrative summary]
+
+Key Questions:
+- [Optional bullet if anything is unclear]
+
 """
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
