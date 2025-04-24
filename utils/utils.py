@@ -9,20 +9,29 @@ def count_tokens(text, model="gpt-4"):
     enc = tiktoken.encoding_for_model(model)
     return len(enc.encode(text))
 
-def embed_vc_profile(site_text, portfolio_text, embedder):
-    try:
-        combined = (site_text.strip() + "\n\n" + portfolio_text.strip())[:16000]
-        if not combined.strip():
-            return "[Error: Combined text is empty]"
-        embedding = embedder.embed_text(combined)
-        if isinstance(embedding, list) and all(isinstance(x, (float, int)) for x in embedding):
-            return embedding
-        else:
-            print("❌ Invalid embedding response:", embedding)
-            return None
-    except Exception as e:
-        print(f"❌ Exception during embedding: {repr(e)}")
-        return None
+def embed_vc_profile(site_text, portfolio_text, interpreter_summary, embedder):
+    """
+    Generate an enriched embedding based on LLM interpretation (category + rationale),
+    not just raw scraped content. This should improve clustering quality and
+    interpretability of PCA dimensions.
+    """
+    if not interpreter_summary:
+        return "[Error: Missing interpretation summary.]"
+
+    # Basic metadata preview
+    enriched_input = f"""
+[Strategic Summary]
+{interpreter_summary.strip()}
+
+[Website Text Preview]
+{site_text.strip()[:800]}
+
+[Portfolio Highlights]
+{portfolio_text.strip()[:1200]}
+""".strip()
+
+    return embedder.embed_text(enriched_input)
+
 
 
 
