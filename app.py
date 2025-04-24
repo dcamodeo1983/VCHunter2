@@ -1,4 +1,4 @@
-# VC Hunter Streamlit UI Upgrade (Semantic-First)
+# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey)
 
 import streamlit as st
 import os
@@ -14,6 +14,7 @@ from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from agents.clustering_agent import ClusteringAgent
 from agents.categorizer_agent import CategorizerAgent
 from agents.visualization_agent import VisualizationAgent
+from agents.founder_survey_agent import FounderSurveyAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
@@ -45,9 +46,11 @@ embedder = EmbedderAgent(api_key=openai_api_key)
 
 # === Upload Founder Document ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
+survey_summary = ""
 if uploaded_file:
     reader = FounderDocReaderAgent()
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
+    survey_agent = FounderSurveyAgent()
 
     st.info("⏳ Extracting text from your file...")
     text = reader.extract_text(uploaded_file)
@@ -66,8 +69,40 @@ if uploaded_file:
         st.header("📄 Startup Summary")
         st.markdown(f"> {summary}")
 
+        st.header("🧾 Founder Survey (Optional but Recommended)")
+        with st.form("founder_survey"):
+            product_stage = st.selectbox("What stage is your product in?", ["Idea", "Prototype", "MVP", "Scaling"])
+            revenue = st.selectbox("What is your current revenue range?", ["$0", "< $10K", "$10K–$100K", "$100K+"])
+            team_size = st.number_input("How many full-time founders are on your team?", min_value=1, max_value=10, step=1)
+            product_type = st.selectbox("What type of product are you building?", ["SaaS", "Consumer App", "Deep Tech", "Hardware", "Marketplace", "Other"])
+            location = st.text_input("Where is your company headquartered?")
+            gtm = st.selectbox("Primary go-to-market motion?", ["Sales-led", "Product-led", "Bottom-up", "Enterprise"])
+            customer = st.selectbox("Primary customer type?", ["Enterprise", "SMB", "Consumer", "Government"])
+            moat = st.selectbox("Do you believe you have a moat?", ["Yes – IP", "Yes – Data", "Yes – Brand", "No Moat Yet"])
+            submitted = st.form_submit_button("Save Survey")
+
+            if submitted:
+                responses = {
+                    "product_stage": product_stage,
+                    "revenue": revenue,
+                    "team_size": team_size,
+                    "product_type": product_type,
+                    "location": location,
+                    "gtm": gtm,
+                    "customer": customer,
+                    "moat": moat
+                }
+                survey_summary = survey_agent.format_survey_summary(responses)
+                st.success("✅ Survey captured successfully!")
+                st.text(survey_summary)
+
+        if survey_summary:
+            combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
+        else:
+            combined_input = summary.strip()
+
         st.info("🔗 Creating embedding...")
-        embedding = embedder.embed_text(summary)
+        embedding = embedder.embed_text(combined_input)
         if isinstance(embedding, list):
             st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
         else:
@@ -104,7 +139,6 @@ if vc_csv:
             )
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
-            # 🧠 NEW: Run LLM interpreter FIRST
             st.info("🧠 Interpreting strategy (LLM)...")
             interpreter_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
