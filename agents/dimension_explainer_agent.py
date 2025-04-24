@@ -24,42 +24,55 @@ class DimensionExplainerAgent:
         summaries = []
 
         for p in profiles:
-            category = (p.get("category") or "Unknown").split("\n")[0].replace("Category:", "").strip()
+            name = p.get("name", "")
+            cat = (p.get("category") or "Unknown").split("\n")[0].replace("Category:", "").strip()
             rationale_line = next((line for line in p.get("strategy_summary", "").splitlines() if line.lower().startswith("rationale")), "")
-            summaries.append(f"{p['name']}: {category} — {rationale_line.strip()}")
+            summaries.append(f"{name}: {cat} — {rationale_line.strip()}")
 
         prompt = f"""
-You are an expert data analyst and VC strategist reviewing the result of a PCA dimensionality reduction and clustering analysis of venture capital firms.
+You are a strategy analyst reviewing a 2D PCA visualization of venture capital firms.
 
-Each point represents a VC firm. The x and y dimensions are latent principal components derived from the embedding of their investment behavior and stated theses.
+Each point is a VC, embedded based on their investment behavior and strategy. The PCA reveals two dimensions.
 
-Below is a sample of the categorized firms and their rationale:
-
+Here are sample VC firms with their assigned strategic category and rationale:
 {chr(10).join(summaries[:30])}
 
-Based on the firms and how they’re grouped, suggest short, human-readable names for the two principal axes that appear on a 2D visualization.
+Please propose intuitive names and directional descriptions for the X and Y axes.
 
-Format your response exactly like this:
-Dimension 1: <label> — <brief description>
-Dimension 2: <label> — <brief description>
+Respond in this format:
+Dimension 1: <short label> — <left vs right description>
+Dimension 2: <short label> — <bottom vs top description>
 """
 
         try:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
+                temperature=0.4,
                 max_tokens=500
             )
             result = response.choices[0].message.content.strip()
 
+            # Parse GPT response
             lines = result.splitlines()
+            x_label, x_description = lines[0].split("—")
+            y_label, y_description = lines[1].split("—")
+
             labels = {
-                "x_label": lines[0].replace("Dimension 1:", "").split("—")[0].strip(),
-                "y_label": lines[1].replace("Dimension 2:", "").split("—")[0].strip()
+                "x_label": x_label.replace("Dimension 1:", "").strip(),
+                "y_label": y_label.replace("Dimension 2:", "").strip(),
+                "x_description": x_description.strip(),
+                "y_description": y_description.strip()
             }
+
             self.save_labels(labels)
             return labels
 
         except Exception as e:
-            return {"x_label": "Dimension 1", "y_label": "Dimension 2", "error": str(e)}
+            return {
+                "x_label": "Dimension 1",
+                "y_label": "Dimension 2",
+                "x_description": "Left = ?, Right = ?",
+                "y_description": "Bottom = ?, Top = ?",
+                "error": str(e)
+            }
