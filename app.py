@@ -1,4 +1,3 @@
-
 # VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
@@ -115,41 +114,3 @@ if uploaded_file:
         else:
             st.error(founder_embedding)
             founder_embedding = None
-
-# === Match to VCs
-if founder_embedding:
-    st.divider()
-    st.subheader("🔍 Find Your Top VC Matches")
-
-    st.markdown("🧠 VC match scores are based on semantic similarity between your concept and each firm's strategy.")
-    st.markdown("The following list shows your top matches along with reasons why they may be aligned with your business.")
-
-    matcher = FounderMatcherAgent()
-    vc_profiles = load_vc_profiles()
-    top_matches = matcher.match(founder_embedding, vc_profiles, top_n=5)
-
-    for match in top_matches:
-        st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
-        st.markdown(f"**Why This Firm Might Be a Good Match:**
-{match['why']}")
-        st.markdown(f"**Suggested Messaging Themes:**
-{match['message']}")
-
-# === VC Visualization
-st.divider()
-st.subheader("📊 VC Landscape Map")
-
-viz_agent = VisualizationAgent(api_key=openai_api_key)
-
-if st.button("🔁 Regenerate Axis Labels (Optional)"):
-    viz_agent.regenerate_axis_labels()
-    st.success("🧠 PCA axis labels refreshed via LLM.")
-
-fig = viz_agent.generate_cluster_map(founder_embedding_2d=matcher.founder_coords if founder_embedding else None)
-if fig:
-    labels = viz_agent.load_axis_labels()
-    st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
-    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
-    st.plotly_chart(fig)
-else:
-    st.warning("No VC profiles found with valid cluster coordinates.")
