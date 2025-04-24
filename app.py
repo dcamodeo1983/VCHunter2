@@ -27,10 +27,13 @@ def load_vc_profiles():
         return []
     return []
 
-
 def save_vc_profiles(profiles):
+    if not profiles:
+        st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
+        return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
+    st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
@@ -104,12 +107,13 @@ if vc_csv:
             st.info("Embedding profile...")
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
             vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
+            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5] if isinstance(vc_embedding, list) else vc_embedding)
 
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
             if strategy_summary:
-                lines = strategy_summary.split("\n")  # ✅ FIXED
+                lines = strategy_summary.split("\n")
                 for line in lines:
                     if line.lower().startswith("category"):
                         st.markdown(f"### 🧠 Strategic Identity")
@@ -166,4 +170,3 @@ if fig:
     st.plotly_chart(fig)
 else:
     st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
-
