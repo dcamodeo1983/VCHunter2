@@ -162,4 +162,8 @@ st.subheader("📊 VC Landscape Map")
 
 viz_agent = VisualizationAgent()
 fig = viz_agent.generate_cluster_map()
-st.plotly_chart(fig)
+if fig:
+    st.plotly_chart(fig)
+else:
+    st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
+
