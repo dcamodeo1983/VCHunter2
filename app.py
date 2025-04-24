@@ -58,6 +58,10 @@ if uploaded_file:
         st.error("❌ No readable text found in the document.")
     else:
         cleaned_text = clean_text(text)
+        st.text_area("🧪 Cleaned Text Preview", cleaned_text[:1000], height=150)
+        if not cleaned_text or count_tokens(cleaned_text) < 20:
+            st.error("❌ Document could not be parsed into readable text. Try reformatting your file.")
+            st.stop()
         token_count = count_tokens(cleaned_text)
         st.success(f"✅ Document processed. ({token_count} tokens)")
 
