@@ -63,6 +63,8 @@ if uploaded_file:
 
         st.info("🧠 Summarizing your concept using GPT...")
         summary = summarizer.summarize(cleaned_text)
+        st.subheader("🧾 Extracted Document Text (Preview)")
+        st.text(cleaned_text[:1000])
 
         st.header("📄 Startup Summary")
         st.markdown(f"> {summary}")
