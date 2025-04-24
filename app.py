@@ -1,5 +1,5 @@
 
-# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Founder Match + Plot Overlay)
+# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
 import os
@@ -46,11 +46,12 @@ load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
-founder_embedding = None
-
 # === Upload Founder Document ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
+founder_embedding = None
+summary = ""
 survey_summary = ""
+
 if uploaded_file:
     reader = FounderDocReaderAgent()
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
@@ -100,34 +101,41 @@ if uploaded_file:
                 st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
-        st.info("🔗 Creating embedding...")
-        embedding = embedder.embed_text(combined_input)
-        if isinstance(embedding, list):
-            founder_embedding = embedding
-            st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
+        if survey_summary:
+            combined_input = f"{summary.strip()}
+
+{survey_summary.strip()}"
         else:
-            st.error(embedding)
+            combined_input = summary.strip()
 
-# === Clustering and Categorization ===
-st.divider()
-st.subheader("🧭 VC Landscape Categorization")
+        st.info("🔗 Creating embedding...")
+        founder_embedding = embedder.embed_text(combined_input)
+        if isinstance(founder_embedding, list):
+            st.success(f"✅ Embedding created. Vector length: {len(founder_embedding)}")
+        else:
+            st.error(founder_embedding)
+            founder_embedding = None
 
-if st.button("Run Clustering + Categorization"):
-    st.info("🔄 Running clustering...")
-    cluster_agent = ClusteringAgent(n_clusters=5)
-    clustered = cluster_agent.cluster()
-    st.success("✅ Clustering complete.")
+# === Match to VCs
+if founder_embedding:
+    st.divider()
+    st.subheader("🔍 Find Your Top VC Matches")
 
-    st.info("🏷 Assigning semantic categories...")
-    categorize_agent = CategorizerAgent(api_key=openai_api_key)
-    categorized = categorize_agent.categorize_clusters()
-    st.success("✅ Categorization complete.")
+    st.markdown("🧠 VC match scores are based on semantic similarity between your concept and each firm's strategy.")
+    st.markdown("The following list shows your top matches along with reasons why they may be aligned with your business.")
 
-    st.balloons()
-    st.success(f"🗂 {len(categorized)} VC profiles categorized and positioned.")
+    matcher = FounderMatcherAgent()
+    vc_profiles = load_vc_profiles()
+    top_matches = matcher.match(founder_embedding, vc_profiles, top_n=5)
 
-# === Visualization ===
+    for match in top_matches:
+        st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
+        st.markdown(f"**Why This Firm Might Be a Good Match:**
+{match['why']}")
+        st.markdown(f"**Suggested Messaging Themes:**
+{match['message']}")
+
+# === VC Visualization
 st.divider()
 st.subheader("📊 VC Landscape Map")
 
@@ -137,29 +145,11 @@ if st.button("🔁 Regenerate Axis Labels (Optional)"):
     viz_agent.regenerate_axis_labels()
     st.success("🧠 PCA axis labels refreshed via LLM.")
 
-fig = viz_agent.generate_cluster_map(founder_embedding_2d=None)
-if founder_embedding:
-    fig = viz_agent.generate_cluster_map(founder_embedding_2d=founder_embedding)
+fig = viz_agent.generate_cluster_map(founder_embedding_2d=matcher.founder_coords if founder_embedding else None)
+if fig:
     labels = viz_agent.load_axis_labels()
     st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
     st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
     st.plotly_chart(fig)
 else:
-    st.warning("⚠️ Founder embedding not found. Upload a document to enable map overlay.")
-
-# === Founder Match
-st.divider()
-st.subheader("🎯 Top VC Matches")
-
-if founder_embedding:
-    matcher = FounderMatcherAgent(founder_embedding)
-    matches = matcher.match(top_k=5)
-    for m in matches:
-        st.markdown(f"### 🔹 {m['name']}")
-        st.markdown(f"- 🔗 [Visit Website]({m['url']})")
-        st.markdown(f"- 🧠 **Match Score:** `{m['score']}`")
-        st.markdown(f"- 🏷 **Category:** {m['category']}")
-        st.markdown(f"- 💡 **Why This VC?** {m['rationale'][:400]}")
-        st.markdown("---")
-else:
-    st.info("Upload your white paper and survey to generate matches.")
+    st.warning("No VC profiles found with valid cluster coordinates.")
