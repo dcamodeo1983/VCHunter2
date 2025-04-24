@@ -34,20 +34,26 @@ class CategorizerAgent:
             ])
 
             prompt = f"""
-You are a seasoned venture capital partner tasked with interpreting clusters of similar VC firms.
-
-You are given a list of firms in this cluster along with their investment strategies.
+You are a senior venture capital partner reviewing a group of VC firms that have been clustered together based on their investment behavior and strategy.
 
 Your task is to:
-- Assign a meaningful, founder-friendly name to this cluster
-- Summarize what connects these firms (e.g., frontier tech, SaaS scalability, deep sector insight)
-- Suggest which types of startups are a good fit
-- Keep it short and crisp — this will appear in a UI for startup founders
+1. Interpret what this group of VC firms has in common.
+2. Assign a short, founder-friendly name to this cluster.
+3. Describe the shared investment style, thesis, or cultural mindset of the group.
+4. Suggest what types of startups or founders are a natural fit for this cluster.
 
-Format:
-Category: [Short label]
-Rationale: [1–2 sentence explanation]
-Suggested Fit: [What kind of founders should consider this group]
+Your response will be shown to startup founders exploring the VC landscape. Help them understand which types of investors they’re looking at.
+
+Input:
+Here is a list of VC firms in this cluster, along with a short summary of each firm’s investment strategy:
+
+{summarized_vcs}
+
+Format your answer like this:
+Category: <short, intuitive label>
+Rationale: <1–2 sentences explaining the common theme>
+Suggested Fit: <1 sentence on what kind of startups or founders this group is right for>
+
 
 """
             try:
