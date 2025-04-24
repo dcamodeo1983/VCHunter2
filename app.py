@@ -100,11 +100,7 @@ if uploaded_file:
                 st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        if survey_summary:
-            combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
-        else:
-            combined_input = summary.strip()
-
+        combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
         st.info("🔗 Creating embedding...")
         founder_embedding = embedder.embed_text(combined_input)
         if isinstance(founder_embedding, list):
