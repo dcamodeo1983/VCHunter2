@@ -1,4 +1,5 @@
-# VC Hunter Streamlit UI Upgrade (Full Integration)
+
+# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Match Explained)
 
 import streamlit as st
 import os
@@ -39,12 +40,13 @@ def save_vc_profiles(profiles):
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
+st.markdown("Upload your startup concept to receive curated insights and a strategic match to venture capital firms.")
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
-# === Founder Upload + Survey + Embedding ===
+# === Upload Founder Document ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 founder_embedding = None
 summary = ""
@@ -55,29 +57,37 @@ if uploaded_file:
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
     survey_agent = FounderSurveyAgent()
 
+    st.info("⏳ Extracting text from your file...")
     text = reader.extract_text(uploaded_file)
     if not text.strip():
-        st.error("❌ No readable text found.")
+        st.error("❌ No readable text found in the document.")
     else:
         cleaned_text = clean_text(text)
+        token_count = count_tokens(cleaned_text)
+        st.success(f"✅ Document processed. ({token_count} tokens)")
+
+        st.info("🧠 Summarizing your concept...")
         summary = summarizer.summarize(cleaned_text)
-        st.subheader("📄 Summary")
+        st.subheader("🧾 Preview of Extracted Text")
+        st.text(cleaned_text[:1000])
+
+        st.header("📄 Startup Summary")
         st.markdown(f"> {summary}")
 
-        st.subheader("📋 Founder Survey")
+        st.header("🧾 Founder Survey (Optional but Recommended)")
         with st.form("founder_survey"):
-            product_stage = st.selectbox("Stage?", ["Idea", "Prototype", "MVP", "Scaling"])
-            revenue = st.selectbox("Revenue?", ["$0", "< $10K", "$10K–$100K", "$100K+"])
-            team_size = st.number_input("Founders?", 1, 10, 2)
-            product_type = st.selectbox("Product?", ["SaaS", "Consumer App", "Deep Tech", "Hardware", "Marketplace", "Other"])
-            location = st.text_input("HQ Location")
-            gtm = st.selectbox("Go-to-Market?", ["Sales-led", "Product-led", "Bottom-up", "Enterprise"])
-            customer = st.selectbox("Customer Type?", ["Enterprise", "SMB", "Consumer", "Government"])
-            moat = st.selectbox("Moat?", ["Yes – IP", "Yes – Data", "Yes – Brand", "No Moat Yet"])
-            submitted = st.form_submit_button("Submit")
+            product_stage = st.selectbox("What stage is your product in?", ["Idea", "Prototype", "MVP", "Scaling"])
+            revenue = st.selectbox("What is your current revenue range?", ["$0", "< $10K", "$10K–$100K", "$100K+"])
+            team_size = st.number_input("How many full-time founders are on your team?", min_value=1, max_value=10, step=1)
+            product_type = st.selectbox("What type of product are you building?", ["SaaS", "Consumer App", "Deep Tech", "Hardware", "Marketplace", "Other"])
+            location = st.text_input("Where is your company headquartered?")
+            gtm = st.selectbox("Primary go-to-market motion?", ["Sales-led", "Product-led", "Bottom-up", "Enterprise"])
+            customer = st.selectbox("Primary customer type?", ["Enterprise", "SMB", "Consumer", "Government"])
+            moat = st.selectbox("Do you believe you have a moat?", ["Yes – IP", "Yes – Data", "Yes – Brand", "No Moat Yet"])
+            submitted = st.form_submit_button("Save Survey")
 
             if submitted:
-                survey_summary = survey_agent.format_survey_summary({
+                responses = {
                     "product_stage": product_stage,
                     "revenue": revenue,
                     "team_size": team_size,
@@ -86,83 +96,59 @@ if uploaded_file:
                     "gtm": gtm,
                     "customer": customer,
                     "moat": moat
-                })
-                st.success("✅ Survey saved.")
+                }
+                survey_summary = survey_agent.format_survey_summary(responses)
+                st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
+        if survey_summary:
+            combined_input = f"{summary.strip()}
+
+{survey_summary.strip()}"
+        else:
+            combined_input = summary.strip()
+
+        st.info("🔗 Creating embedding...")
         founder_embedding = embedder.embed_text(combined_input)
-        if not isinstance(founder_embedding, list):
-            st.error("Embedding failed.")
+        if isinstance(founder_embedding, list):
+            st.success(f"✅ Embedding created. Vector length: {len(founder_embedding)}")
+        else:
+            st.error(founder_embedding)
             founder_embedding = None
 
-# === VC CSV Upload and Scraping ===
-st.divider()
-st.subheader("📥 Upload VC CSV")
-vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
-if vc_csv:
-    df = pd.read_csv(vc_csv)
-    urls = df['url'].dropna().unique().tolist()
-    for url in urls:
-        scraper = VCWebsiteScraperAgent()
-        enricher = PortfolioEnricherAgent()
-        interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
-        vc_site_text = scraper.scrape_text(url)
-        if len(vc_site_text.strip()) < 100:
-            continue
-        links = scraper.find_portfolio_links(url)
-        portfolio = enricher.extract_portfolio_entries_from_pages(links) if links else enricher.extract_portfolio_entries(vc_site_text)
-        strategy = interpreter.interpret_strategy(url, vc_site_text, portfolio)
-        portfolio_text = "\n".join([f"{e['name']}: {e['description']}" for e in portfolio])
-        embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy, embedder)
-        if not isinstance(embedding, list):
-            continue
-        profile = {
-            "name": url.split("//")[-1].replace("www.", ""),
-            "url": url,
-            "embedding": embedding,
-            "portfolio_size": len(portfolio),
-            "strategy_summary": strategy,
-            "category": None,
-            "motivational_signals": [],
-            "cluster_id": None,
-            "coordinates": [None, None]
-        }
-        cache = load_vc_profiles()
-        cache = [p for p in cache if p['url'] != url]
-        cache.append(profile)
-        save_vc_profiles(cache)
-
-# === Clustering & Categorization ===
-st.divider()
-st.subheader("🧭 Categorize VC Landscape")
-if st.button("Run Clustering + Categorization"):
-    clustered = ClusteringAgent(n_clusters=5).cluster()
-    categorized = CategorizerAgent(api_key=openai_api_key).categorize_clusters()
-    st.success(f"🗂 {len(categorized)} VC profiles categorized.")
-
-# === Matching Founders to VCs
+# === Match to VCs ===
 if founder_embedding:
     st.divider()
-    st.subheader("🤝 VC Matching Results")
-    st.markdown("The following firms are the most aligned with your concept:")
-    matcher = FounderMatcherAgent()
-    vcs = load_vc_profiles()
-    top = matcher.match(founder_embedding, vcs, top_n=5)
-    for m in top:
-        st.markdown(f"### ⭐ {m['name']} (Score: {m['score']:.3f})")
-        st.markdown(f"**Why:** {m['why']}")
-        st.markdown(f"**Suggested Messaging:** {m['message']}")
+    st.subheader("🔍 Find Your Top VC Matches")
+    st.markdown("🧠 VC match scores are based on semantic similarity between your concept and each firm's strategy.")
+    st.markdown("The following list shows your top matches along with reasons why they may be aligned with your business.")
 
-# === Visualization
+    matcher = FounderMatcherAgent(founder_embedding)
+    vc_profiles = load_vc_profiles()
+    top_matches = matcher.match(founder_embedding, vc_profiles, top_n=5)
+
+    for match in top_matches:
+        st.markdown(f"### ⭐ {match['name']} (Score: {match['score']:.3f})")
+        st.markdown(f"**Why This Firm Might Be a Good Match:**
+{match['why']}")
+        st.markdown(f"**Suggested Messaging Themes:**
+{match['message']}")
+
+# === Visualization ===
 st.divider()
 st.subheader("📊 VC Landscape Map")
-viz = VisualizationAgent(api_key=openai_api_key)
-if st.button("🔁 Refresh Axis Labels"):
-    viz.regenerate_axis_labels()
-fig = viz.generate_cluster_map(founder_embedding_2d=matcher.founder_coords if founder_embedding else None)
+
+viz_agent = VisualizationAgent(api_key=openai_api_key)
+
+if st.button("🔁 Regenerate Axis Labels (Optional)"):
+    viz_agent.regenerate_axis_labels()
+    st.success("🧠 PCA axis labels refreshed via LLM.")
+
+fig = viz_agent.generate_cluster_map(founder_embedding_2d=matcher.founder_coords if founder_embedding else None)
 if fig:
-    lbl = viz.load_axis_labels()
-    st.markdown(f"**X ({lbl['x_label']}):** {lbl.get('x_description', '')}")
-    st.markdown(f"**Y ({lbl['y_label']}):** {lbl.get('y_description', '')}")
+    labels = viz_agent.load_axis_labels()
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
     st.plotly_chart(fig)
+else:
+    st.warning("No VC profiles found with valid cluster coordinates.")
