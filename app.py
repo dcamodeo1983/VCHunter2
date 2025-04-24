@@ -1,5 +1,5 @@
 
-# Complete VC Hunter App with Founder Upload, Survey, VC URL Upload, Clustering, and Visualization
+# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey + Matching)
 
 import streamlit as st
 import os
@@ -16,6 +16,7 @@ from agents.clustering_agent import ClusteringAgent
 from agents.categorizer_agent import CategorizerAgent
 from agents.visualization_agent import VisualizationAgent
 from agents.founder_survey_agent import FounderSurveyAgent
+from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
@@ -44,7 +45,7 @@ load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
-# === Founder Upload Section ===
+# === Founder Upload ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 survey_summary = ""
 if uploaded_file:
@@ -71,7 +72,7 @@ if uploaded_file:
     final_input = f"{summary}\n\n{survey_summary.strip()}" if survey_summary else summary
     embedding = embedder.embed_text(final_input)
 
-# === VC CSV Upload + Embedding ===
+# === VC Ingestion ===
 st.divider()
 st.subheader("📥 Upload CSV of VC URLs")
 
@@ -129,3 +130,23 @@ if fig:
     st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
     st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
     st.plotly_chart(fig)
+
+# === Founder Matching ===
+st.divider()
+st.subheader("🤝 Top VC Matches for Your Startup")
+
+if 'embedding' in locals() and isinstance(embedding, list):
+    matcher = FounderMatcherAgent(api_key=openai_api_key)
+    if st.button("🔍 Find Top Matches"):
+        matches = matcher.find_matches(embedding, top_k=5)
+        if matches:
+            for match in matches:
+                st.markdown(f"### {match['name']} ({match['score']})")
+                st.markdown(f"- 🌐 [Visit Website]({match['url']})")
+                st.markdown(f"- 🧠 **Category**: {match['category']}")
+                st.markdown(f"> {match['rationale']}")
+                st.divider()
+        else:
+            st.warning("No valid VC matches found.")
+else:
+    st.info("📎 Upload a document and generate an embedding to run founder matching.")
