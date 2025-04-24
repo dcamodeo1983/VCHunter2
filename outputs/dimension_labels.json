@@ -1,6 +1,8 @@
 {
   "x_label": "Thesis Depth",
-  "y_label": "Stage Specialization"
+  "y_label": "Stage Specialization",
+  "x_description": "Left = opportunistic generalists • Right = thesis-led VCs with a strong point of view",
+  "y_description": "Bottom = early stage focused • Top = later stage or flexible entry points"
 }
 
 
