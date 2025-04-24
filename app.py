@@ -1,4 +1,5 @@
-# VC Hunter Streamlit UI Upgrade (Semantic-First + Survey)
+
+# Complete VC Hunter App with Founder Upload, Survey, VC URL Upload, Clustering, and Visualization
 
 import streamlit as st
 import os
@@ -38,13 +39,12 @@ def save_vc_profiles(profiles):
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
-st.markdown("Upload your startup concept to receive curated insights and a strategic match to venture capital firms.")
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
-# === Upload Founder Document ===
+# === Founder Upload Section ===
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 survey_summary = ""
 if uploaded_file:
@@ -52,82 +52,80 @@ if uploaded_file:
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
     survey_agent = FounderSurveyAgent()
 
-    st.info("⏳ Extracting text from your file...")
     text = reader.extract_text(uploaded_file)
-    if not text.strip():
-        st.error("❌ No readable text found in the document.")
-    else:
-        cleaned_text = clean_text(text)
-        token_count = count_tokens(cleaned_text)
-        st.success(f"✅ Document processed. ({token_count} tokens)")
+    cleaned_text = clean_text(text)
+    summary = summarizer.summarize(cleaned_text)
+    st.subheader("📄 Startup Summary")
+    st.text_area("Extracted Text", cleaned_text[:1000])
+    st.markdown(f"> {summary}")
 
-        st.info("🧠 Summarizing your concept...")
-        summary = summarizer.summarize(cleaned_text)
-        st.subheader("🧾 Preview of Extracted Text")
-        st.text(cleaned_text[:1000])
+    with st.form("founder_survey"):
+        stage = st.selectbox("Stage", ["Idea", "MVP", "Growth"])
+        revenue = st.selectbox("Revenue", ["$0", "<$10k", ">$10k"])
+        gtm = st.selectbox("Go to Market", ["PLG", "Sales-led"])
+        submitted = st.form_submit_button("Submit Survey")
+        if submitted:
+            survey_summary = survey_agent.format_survey_summary({
+                "stage": stage, "revenue": revenue, "gtm": gtm
+            })
+    final_input = f"{summary}\n\n{survey_summary.strip()}" if survey_summary else summary
+    embedding = embedder.embed_text(final_input)
 
-        st.header("📄 Startup Summary")
-        st.markdown(f"> {summary}")
+# === VC CSV Upload + Embedding ===
+st.divider()
+st.subheader("📥 Upload CSV of VC URLs")
 
-        st.header("🧾 Founder Survey (Optional but Recommended)")
-        with st.form("founder_survey"):
-            product_stage = st.selectbox("What stage is your product in?", ["Idea", "Prototype", "MVP", "Scaling"])
-            revenue = st.selectbox("What is your current revenue range?", ["$0", "< $10K", "$10K–$100K", "$100K+"])
-            team_size = st.number_input("How many full-time founders are on your team?", min_value=1, max_value=10, step=1)
-            product_type = st.selectbox("What type of product are you building?", ["SaaS", "Consumer App", "Deep Tech", "Hardware", "Marketplace", "Other"])
-            location = st.text_input("Where is your company headquartered?")
-            gtm = st.selectbox("Primary go-to-market motion?", ["Sales-led", "Product-led", "Bottom-up", "Enterprise"])
-            customer = st.selectbox("Primary customer type?", ["Enterprise", "SMB", "Consumer", "Government"])
-            moat = st.selectbox("Do you believe you have a moat?", ["Yes – IP", "Yes – Data", "Yes – Brand", "No Moat Yet"])
-            submitted = st.form_submit_button("Save Survey")
+vc_csv = st.file_uploader("Upload CSV with `url` column", type=["csv"])
+if vc_csv:
+    df = pd.read_csv(vc_csv)
+    urls = df['url'].dropna().unique().tolist()
+    for url in urls:
+        scraper = VCWebsiteScraperAgent()
+        enricher = PortfolioEnricherAgent()
+        interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
+        site_text = scraper.scrape_text(url)
+        if len(site_text.strip()) < 100:
+            continue
+        portfolio_links = scraper.find_portfolio_links(url)
+        portfolio = (
+            enricher.extract_portfolio_entries_from_pages(portfolio_links)
+            if portfolio_links else enricher.extract_portfolio_entries(site_text)
+        )
+        summary = interpreter.interpret_strategy(url, site_text, portfolio)
+        portfolio_text = "\n".join([f"{x['name']}: {x['description']}" for x in portfolio])
+        vc_embedding = embed_vc_profile(site_text, portfolio_text, summary, embedder)
+        profile = {
+            "name": url.split("//")[-1].replace("www.", ""),
+            "url": url,
+            "embedding": vc_embedding,
+            "portfolio_size": len(portfolio),
+            "strategy_summary": summary,
+            "category": None,
+            "motivational_signals": [],
+            "cluster_id": None,
+            "coordinates": [None, None]
+        }
+        profiles = load_vc_profiles()
+        profiles = [p for p in profiles if p['url'] != url]
+        profiles.append(profile)
+        save_vc_profiles(profiles)
 
-            if submitted:
-                responses = {
-                    "product_stage": product_stage,
-                    "revenue": revenue,
-                    "team_size": team_size,
-                    "product_type": product_type,
-                    "location": location,
-                    "gtm": gtm,
-                    "customer": customer,
-                    "moat": moat
-                }
-                survey_summary = survey_agent.format_survey_summary(responses)
-                st.success("✅ Survey captured successfully!")
-                st.text(survey_summary)
-
-        if survey_summary:
-            combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
-        else:
-            combined_input = summary.strip()
-
-        st.info("🔗 Creating embedding...")
-        embedding = embedder.embed_text(combined_input)
-        if isinstance(embedding, list):
-            st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
-        else:
-            st.error(embedding)
+# === Clustering & Categorization ===
+st.divider()
+if st.button("🧭 Cluster & Categorize VCs"):
+    ClusteringAgent(n_clusters=5).cluster()
+    CategorizerAgent(api_key=openai_api_key).categorize_clusters()
+    st.success("✅ Clustering and categorization complete")
 
 # === Visualization ===
 st.divider()
-st.subheader("📊 VC Landscape Map")
-
 viz_agent = VisualizationAgent(api_key=openai_api_key)
-
-if st.button("🔁 Regenerate Axis Labels (Optional)"):
+if st.button("🔁 Regenerate Axis Labels"):
     viz_agent.regenerate_axis_labels()
-    st.success("🧠 PCA axis labels refreshed via LLM.")
 
 fig = viz_agent.generate_cluster_map()
 if fig:
     labels = viz_agent.load_axis_labels()
-    st.markdown(f"""
-🧭 **X-Axis: _{labels['x_label']}_**  
-{labels.get('x_description', 'This axis represents a key investment trait.')}
-
-🧭 **Y-Axis: _{labels['y_label']}_**  
-{labels.get('y_description', 'This axis represents another strategic trait of VC firms.')}
-""")
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
     st.plotly_chart(fig)
-else:
-    st.warning("No VC profiles found with valid cluster coordinates.")
