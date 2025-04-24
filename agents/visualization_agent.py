@@ -18,22 +18,21 @@ class VisualizationAgent:
     def generate_cluster_map(self):
         profiles = self.load_profiles()
         data = []
-
+        
         for p in profiles:
-            coords = p.get("coordinates")
-            if coords and isinstance(coords, list) and len(coords) == 2 and all(isinstance(c, (int, float)) for c in coords):
-                category = (p.get("category") or "").split("\n")[0].replace("Category:", "").strip()
-                rationale = ""
-                if p.get("category") and "Rationale:" in p["category"]:
-                    rationale = p["category"].split("Rationale:")[-1].strip()
+            if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
+                tooltip = f"{p['name']}\nCategory: {p.get('category', 'N/A')}\nPortfolio Size: {p.get('portfolio_size', 0)}"
+                strategy = p.get("strategy_summary", "")
+                rationale_line = next((line for line in strategy.splitlines() if line.lower().startswith("rationale")), "")
+                if rationale_line:
+                    tooltip += f"\n{rationale_line.strip()}"
 
                 data.append({
-                    "name": p.get("name", "Unnamed VC"),
-                    "x": coords[0],
-                    "y": coords[1],
-                    "cluster_id": p.get("cluster_id"),
-                    "category": category,
-                    "rationale": rationale
+                    "name": p["name"],
+                    "x": p["coordinates"][0],
+                    "y": p["coordinates"][1],
+                    "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip(),
+                    "tooltip": tooltip
                 })
 
         if not data:
@@ -47,13 +46,15 @@ class VisualizationAgent:
             y="y",
             color="category",
             hover_name="name",
-            hover_data=["rationale"],
-            title="VC Landscape by Strategic Category",
-            labels={"x": "Dimension 1", "y": "Dimension 2"},
-            width=900,
-            height=600,
-            color_discrete_sequence=px.colors.qualitative.Bold
+            hover_data={"x": False, "y": False, "tooltip": True},
+            title="🧭 VC Landscape by Strategic Identity",
+            labels={"x": "Dimension 1 (TBD)", "y": "Dimension 2 (TBD)"},
+            color_discrete_sequence=px.colors.qualitative.Safe,
+            width=950,
+            height=600
         )
 
-        fig.update_traces(marker=dict(size=10, opacity=0.8))
+        fig.update_traces(marker=dict(size=10, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')))
+        fig.update_layout(legend_title_text='Cluster Category')
+
         return fig
