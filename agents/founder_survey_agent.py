@@ -4,19 +4,16 @@ class FounderSurveyAgent:
 
     def format_survey_summary(self, responses: dict) -> str:
         """
-        Take in a dictionary of Streamlit form responses and return a readable summary.
+        Convert structured survey responses into a human-readable paragraph for embedding.
         """
-        summary = f"""
-[Founder Survey Summary]
+        return (
+            f"The product is currently at the '{responses['product_stage']}' stage, "
+            f"earning '{responses['revenue']}' in revenue. "
+            f"It is led by a team of {responses['team_size']} full-time founder(s), "
+            f"focused on building a '{responses['product_type']}' solution. "
+            f"The company is headquartered in '{responses['location']}'. "
+            f"Its primary go-to-market motion is '{responses['gtm']}', "
+            f"targeting '{responses['customer']}' customers. "
+            f"The perceived moat is '{responses['moat']}'."
+        )
 
-- Product Stage: {responses.get('product_stage')}
-- Revenue: {responses.get('revenue')}
-- Team Size: {responses.get('team_size')} full-time founder(s)
-- Product Type: {responses.get('product_type')}
-- Headquarters: {responses.get('location')}
-- Go-to-Market: {responses.get('gtm')}
-- Customer Type: {responses.get('customer')}
-- Moat: {responses.get('moat')}
-""".strip()
-
-        return summary
