@@ -1,8 +1,8 @@
 {
   "x_label": "Thesis Depth",
+  "x_description": "Firms on the right articulate highly detailed investment theses, often with academic or technical framing. Left-side firms focus on generalist, opportunistic, or ambiguous strategies.",
   "y_label": "Stage Specialization",
-  "x_description": "Left = opportunistic generalists • Right = thesis-led VCs with a strong point of view",
-  "y_description": "Bottom = early stage focused • Top = later stage or flexible entry points"
+  "y_description": "Higher values represent firms focused on early-stage, pre-seed, and innovation bets. Lower values lean toward growth-stage or scaling deployments."
 }
 
 
