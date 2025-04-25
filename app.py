@@ -160,7 +160,7 @@ if vc_csv:
 
             st.info("Embedding profile...")
             portfolio_text = "
-".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
+".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio]).join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
