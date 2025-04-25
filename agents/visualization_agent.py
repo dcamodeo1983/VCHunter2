@@ -1,4 +1,3 @@
-
 import json
 import os
 import plotly.express as px
@@ -16,26 +15,24 @@ class VisualizationAgent:
             self.client = OpenAI(api_key=api_key)
 
     def load_profiles(self):
-        if os.path.exists(VC_PROFILE_PATH):
+        if not os.path.exists(VC_PROFILE_PATH):
+            return []
+        try:
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
+        except json.JSONDecodeError:
+            return []
         return []
 
     def load_axis_labels(self):
+        if not os.path.exists(DIMENSION_LABELS_PATH):
+            return {}
         try:
-            if os.path.exists(DIMENSION_LABELS_PATH):
-                with open(DIMENSION_LABELS_PATH, "r") as f:
-                    return json.load(f)
+            with open(DIMENSION_LABELS_PATH, "r") as f:
+                return json.load(f)
         except json.JSONDecodeError:
-            pass
-        return {
-            "x_label": "PC1",
-            "x_description": "",
-            "x_variance": 0.0,
-            "y_label": "PC2",
-            "y_description": "",
-            "y_variance": 0.0
-        }
+            return {}
+        return {}
 
     def generate_cluster_map(self, founder_embedding_2d=None):
         profiles = self.load_profiles()
@@ -46,7 +43,7 @@ class VisualizationAgent:
         if not data:
             return None, {}
 
-        df = pd.DataFrame([{
+        df = pd.DataFrame([{  
             "name": p["name"],
             "x": p["coordinates"][0],
             "y": p["coordinates"][1],
@@ -55,10 +52,6 @@ class VisualizationAgent:
             "summary": p.get("strategy_summary", "")
         } for p in data])
 
-        df["rationale"] = df["summary"].apply(
-            lambda x: next((line for line in x.split("\n") if "Rationale:" in line), "")
-        )
-
         labels = self.load_axis_labels()
 
         fig = px.scatter(
@@ -66,16 +59,10 @@ class VisualizationAgent:
             x="x",
             y="y",
             color="category",
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            hover_data={
-                "name": True,
-                "category": True,
-                "portfolio_size": True,
-                "rationale": True,
-                "x": False,
-                "y": False
-            },
-            title="🧭 VC Landscape by Strategic Identity",
+            size="portfolio_size",
+            hover_data=["name", "summary"],
+            category_orders={"category": sorted(df["category"].unique())},
+            opacity=0.7,
             width=1100,
             height=500,
             labels={"x": labels["x_label"], "y": labels["y_label"]}
@@ -92,10 +79,19 @@ class VisualizationAgent:
                 name="You"
             )
 
+        # Update layout: move legend to the right and adjust margins
         fig.update_layout(
             legend_title_text="Cluster Category",
+            legend=dict(
+                orientation="v",
+                y=1,
+                x=1.02,
+                xanchor='left',
+                yanchor='top'
+            ),
             title_font_size=20,
-            font=dict(size=13)
+            font=dict(size=13),
+            margin=dict(l=40, r=200, t=80, b=40)
         )
 
         return fig, labels
@@ -109,14 +105,17 @@ class VisualizationAgent:
 
         def query_label(pc_terms, axis):
             terms_str = ", ".join(pc_terms)
-            prompt = f"You are a VC analyst. What does this semantic axis represent based on the terms: {terms_str}? Return a short label and a 1-2 sentence description."
+            prompt = f"You are a VC analyst. What does this list of principal component terms ({terms_str}) represent for the {axis}-axis? Return a short label and a 1-2 sentence description."
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.6
             )
-            return response.choices[0].message.content.strip().split("\n", 1)
-
+            text = response.choices[0].message.content.strip()
+            parts = text.split(":", 1)
+            if len(parts) == 2:
+                return parts[0].strip(), parts[1].strip()
+            return text, ""
         x_label, x_description = query_label(pca_terms["PC1_terms"], "x")
         y_label, y_description = query_label(pca_terms["PC2_terms"], "y")
 
