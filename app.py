@@ -109,4 +109,63 @@ if uploaded_file:
 
         st.info("🔗 Creating embedding...")
         embedding = embedder.embed_text(combined_input)
-        if isinstance(embeddi
+        if isinstance(embedding, list):
+            st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
+
+            matcher = FounderMatcherAgent(embedding)
+            top_matches = matcher.match(top_k=5)
+            if top_matches:
+                top_match_url = top_matches[0]["url"]
+                top_cluster = next((p.get("cluster_id") for p in load_vc_profiles() if p["url"] == top_match_url), None)
+                founder_cluster_id = top_cluster
+
+                st.subheader("🎯 Top VC Matches")
+                for match in top_matches:
+                    st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                    st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+                    st.markdown(f"• Strategy: {match['rationale']}")
+                    st.markdown("---")
+        else:
+            st.error("❌ No valid embedding returned.")
+
+# === Clustering + Categorization ===
+st.divider()
+st.subheader("🧭 VC Landscape Categorization")
+
+if st.button("Run Clustering + Categorization"):
+    st.info("Clustering VC embeddings...")
+    cluster_agent = ClusteringAgent(n_clusters=5)
+    clustered_profiles = cluster_agent.cluster()
+    st.success("Clustering complete.")
+
+    if uploaded_file and isinstance(embedding, list):
+        founder_2d = cluster_agent.transform(embedding)
+
+    st.info("Categorizing each cluster...")
+    categorize_agent = CategorizerAgent(api_key=openai_api_key)
+    categorized_profiles = categorize_agent.categorize_clusters()
+    st.success("Categorization complete.")
+
+    st.balloons()
+    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
+    dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
+    dim_agent.generate_axis_labels()
+
+# === Semantic Visualization with Axis Labels ===
+st.divider()
+st.subheader("📊 VC Landscape Map")
+
+viz_agent = VisualizationAgent(api_key=openai_api_key)
+
+if st.button("🔁 Regenerate Axis Labels (Optional)"):
+    viz_agent.regenerate_axis_labels()
+    st.success("🧠 PCA axis labels refreshed via LLM.")
+
+fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d, founder_cluster_id=founder_cluster_id)
+if fig:
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No VC profiles found with valid cluster coordinates.")
