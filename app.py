@@ -177,10 +177,10 @@ if vc_csv:
                 "coordinates": [None, None]
             }              
 
-                cached_profiles = load_vc_profiles()
-                cached_profiles = [p for p in cached_profiles if p['url'] != url]
-                cached_profiles.append(vc_profile)
-                save_vc_profiles(cached_profiles)
+            cached_profiles = load_vc_profiles()
+            cached_profiles = [p for p in cached_profiles if p['url'] != url]
+            cached_profiles.append(vc_profile)
+            save_vc_profiles(cached_profiles)
 
 # === Clustering + Categorization ===
 st.divider()
