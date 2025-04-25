@@ -1,4 +1,3 @@
-
 # VC Hunter Streamlit UI Upgrade (Narrative-Driven)
 
 import streamlit as st
@@ -19,6 +18,7 @@ from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
+
 def load_vc_profiles():
     try:
         if os.path.exists(VC_PROFILE_PATH):
@@ -28,22 +28,23 @@ def load_vc_profiles():
         return []
     return []
 
+
 def save_vc_profiles(profiles):
     if not profiles:
         st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
-    st.write(f"📁 Saved {{len(profiles)}} VC profiles to {{VC_PROFILE_PATH}}")
+    st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
 
 # We will re-append the rest of the app.py logic that you already pasted above in subsequent steps.
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
 st.title("🧠 VC Hunter: Founder Intelligence Report")
-st.markdown("""
+st.markdown('''
 Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs.
-""")
+''')
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
