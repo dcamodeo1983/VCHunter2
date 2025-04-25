@@ -72,7 +72,6 @@ if uploaded_file:
         st.header("📄 Startup Summary")
         st.markdown(f"> {summary}")
 
-        # — Founder Survey Integration —
         survey_agent = FounderSurveyAgent()
         survey_summary = ""
 
@@ -103,7 +102,6 @@ if uploaded_file:
                 st.success("✅ Survey captured successfully!")
                 st.text(survey_summary)
 
-        # Combine summary + survey
         if survey_summary:
             combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
         else:
@@ -118,10 +116,8 @@ if uploaded_file:
             top_matches = matcher.match(top_k=5)
             if top_matches:
                 top_match_url = top_matches[0]["url"]
-                founder_cluster_id = next(
-                    (p.get("cluster_id") for p in load_vc_profiles() if p["url"] == top_match_url),
-                    None
-                )
+                top_cluster = next((p.get("cluster_id") for p in load_vc_profiles() if p["url"] == top_match_url), None)
+                founder_cluster_id = top_cluster
 
                 st.subheader("🎯 Top VC Matches")
                 for match in top_matches:
@@ -137,6 +133,7 @@ st.divider()
 st.header("📥 Upload CSV of VC URLs")
 
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
+
 if vc_csv:
     df = pd.read_csv(vc_csv)
     urls = df['url'].dropna().unique().tolist()
@@ -161,19 +158,12 @@ if vc_csv:
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
-            # — Fix #1: correct portfolio_text join
             st.info("Embedding profile...")
-            portfolio_text = "\n".join(
-                [entry['name'] + ": " + entry['description'] for entry in structured_portfolio]
-            )
-
-            # — Fix #2: interpret strategy before embedding + wrap in vc_profile dict
+            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
 
-            vc_embedding = embed_vc_profile(
-                vc_site_text, portfolio_text, strategy_summary, embedder
-            )
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
 
             vc_profile = {
                 "name": url.split("//")[-1].replace("www.", ""),
@@ -184,13 +174,13 @@ if vc_csv:
                 "category": None,
                 "motivational_signals": [],
                 "cluster_id": None,
-                "coordinates": [None, None],
-            }
+                "coordinates": [None, None]
+            }              
 
-            cached_profiles = load_vc_profiles()
-            cached_profiles = [p for p in cached_profiles if p['url'] != url]
-            cached_profiles.append(vc_profile)
-            save_vc_profiles(cached_profiles)
+                cached_profiles = load_vc_profiles()
+                cached_profiles = [p for p in cached_profiles if p['url'] != url]
+                cached_profiles.append(vc_profile)
+                save_vc_profiles(cached_profiles)
 
 # === Clustering + Categorization ===
 st.divider()
@@ -213,7 +203,6 @@ if st.button("Run Clustering + Categorization"):
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 
-    # Auto-refresh dimension labels
     dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
     dim_agent.generate_axis_labels()
 
@@ -227,17 +216,10 @@ if st.button("🔁 Regenerate Axis Labels (Optional)"):
     viz_agent.regenerate_axis_labels()
     st.success("🧠 PCA axis labels refreshed via LLM.")
 
-fig, labels = viz_agent.generate_cluster_map(
-    founder_embedding_2d=founder_2d,
-    founder_cluster_id=founder_cluster_id
-)
+fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d, founder_cluster_id=founder_cluster_id)
 if fig:
-    st.markdown(
-        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0)*100:.1f}% variance):** {labels['x_description']}"
-    )
-    st.markdown(
-        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0)*100:.1f}% variance):** {labels['y_description']}"
-    )
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No VC profiles found with valid cluster coordinates.")
