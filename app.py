@@ -159,11 +159,8 @@ if vc_csv:
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
             st.info("Embedding profile...")
-            portfolio_text = "
-".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
+            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
-            st.info("Interpreting strategy...")
-            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
                     "strategy_summary": strategy_summary,
                     "category": None,
                     "motivational_signals": [],
