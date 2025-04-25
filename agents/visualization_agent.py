@@ -7,11 +7,12 @@ from sklearn.decomposition import PCA
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
+CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
 
 class VisualizationAgent:
     def __init__(self, api_key=None):
-        self.api_key = api_key  # Reserved for future use
-        self.color_palette = px.colors.qualitative.Safe  # Use discrete colors
+        self.api_key = api_key
+        self.color_palette = px.colors.qualitative.Safe  # Discrete color palette
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -29,6 +30,12 @@ class VisualizationAgent:
             "x_description": "",
             "y_description": ""
         }
+    
+    def load_cluster_labels(self):
+        if os.path.exists(CLUSTER_LABELS_PATH):
+            with open(CLUSTER_LABELS_PATH, "r") as f:
+                return json.load(f)
+        return {}
 
     def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None):
         profiles = self.load_profiles()
@@ -44,9 +51,12 @@ class VisualizationAgent:
             profile["pca_x"] = float(x)
             profile["pca_y"] = float(y)
 
+        cluster_labels = self.load_cluster_labels()
+
         df = pd.DataFrame({
             "VC Name": [p["name"] for p in profiles],
-            "Cluster": [p.get("cluster_id", -1) for p in profiles],
+            "Cluster ID": [p.get("cluster_id", -1) for p in profiles],
+            "Cluster Name": [cluster_labels.get(str(p.get("cluster_id", -1)), {}).get("name", f"Cluster {p.get('cluster_id', -1)}") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
             "Strategy Summary": [p.get("strategy_summary", "") for p in profiles],
@@ -55,22 +65,23 @@ class VisualizationAgent:
         })
 
         dim_labels = self.load_dimension_labels()
-        unique_clusters = sorted(df["Cluster"].unique())
+        unique_clusters = sorted(df["Cluster Name"].unique())
         cluster_color_map = {
-            cluster_id: self.color_palette[i % len(self.color_palette)]
-            for i, cluster_id in enumerate(unique_clusters)
+            cluster_name: self.color_palette[i % len(self.color_palette)]
+            for i, cluster_name in enumerate(unique_clusters)
         }
 
-        df["Color"] = df["Cluster"].map(cluster_color_map)
+        df["Color"] = df["Cluster Name"].map(cluster_color_map)
 
         fig = px.scatter(
             df,
             x="X",
             y="Y",
-            color="Cluster",
+            color="Cluster Name",
             color_discrete_map=cluster_color_map,
             hover_data=[
                 "VC Name",
+                "Cluster Name",
                 "Strategy Summary",
                 "Motivational Signals",
                 # "Portfolio Size",
