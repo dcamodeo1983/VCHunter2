@@ -30,65 +30,70 @@ class VisualizationAgent:
             "y_description": ""
         }
 
-    def generate_cluster_map(self, founder_embedding_2d=None):
-        profiles = self.load_profiles()
-        labels = self.load_axis_labels()
-        data = []
+def generate_cluster_map(self, founder_embedding_2d=None):
+    profiles = self.load_profiles()
+    if not profiles:
+        return None, {}
 
-        for p in profiles:
-            if p.get("coordinates") and p["coordinates"][0] is not None and p.get("cluster_id") is not None:
-                rationale_line = next(
-                    (line for line in p.get("strategy_summary", "").splitlines()
-                     if line.lower().startswith("rationale")),
-                    ""
-                )
-                tooltip = (
-                    f"{p['name']}\n"
-                    f"Category: {p.get('category', 'N/A')}\n"
-                    f"Portfolio Size: {p.get('portfolio_size', 0)}\n"
-                    f"{rationale_line.strip()}"
-                )
+    # Filter profiles with valid coordinates
+    data = [p for p in profiles if p.get("coordinates") and None not in p["coordinates"]]
+    if not data:
+        return None, {}
 
-                data.append({
-                    "name": p["name"],
-                    "x": p["coordinates"][0],
-                    "y": p["coordinates"][1],
-                    "category": (p.get("category") or "").split("\n")[0].replace("Category:", "").strip(),
-                    "tooltip": tooltip
-                })
+    df = pd.DataFrame([{
+        "name": p["name"],
+        "x": p["coordinates"][0],
+        "y": p["coordinates"][1],
+        "category": p.get("category", "Uncategorized"),
+        "portfolio_size": p.get("portfolio_size", 0),
+        "summary": p.get("strategy_summary", "")
+    } for p in data])
 
-        if not data:
-            return None
+    # Extract rationale line
+    df["rationale"] = df["summary"].apply(
+        lambda x: next((line for line in x.split("\n") if "Rationale:" in line), "")
+    )
 
-        df = pd.DataFrame(data)
+    # Load axis labels and descriptions
+    labels = self.load_axis_labels()
 
-        fig = px.scatter(
-            df,
-            x="x",
-            y="y",
-            color="category",
-            hover_name="name",
-            hover_data={"tooltip": True},
-            labels={"x": labels["x_label"], "y": labels["y_label"]},
-            title="🧭 VC Landscape by Strategic Identity",
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            width=950,
-            height=600
+    # Create scatter plot
+    fig = px.scatter(
+        df,
+        x="x",
+        y="y",
+        color="category",
+        color_discrete_sequence=px.colors.qualitative.Safe,
+        hover_data={
+            "name": True,
+            "category": True,
+            "portfolio_size": True,
+            "rationale": True,
+            "x": False,
+            "y": False
+        },
+        title="🧭 VC Landscape by Strategic Identity",
+        width=950,
+        height=600
+    )
+
+    # Overlay founder position
+    if founder_embedding_2d and len(founder_embedding_2d) == 2:
+        fig.add_scatter(
+            x=[founder_embedding_2d[0]],
+            y=[founder_embedding_2d[1]],
+            mode="markers+text",
+            marker=dict(symbol='star', size=16, color='black'),
+            text=["⭐ You"],
+            textposition="top center",
+            name="You"
         )
 
-        fig.update_traces(marker=dict(size=10, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')))
-        fig.update_layout(legend_title_text='Cluster Category')
+    fig.update_layout(
+        legend_title_text="Cluster Category",
+        title_font_size=20,
+        font=dict(size=13)
+    )
 
-        if founder_embedding_2d:
-            fig.add_scatter(
-                x=[founder_embedding_2d[0]],
-                y=[founder_embedding_2d[1]],
-                mode="markers+text",
-                name="Your Startup",
-                marker=dict(symbol='star', size=16, color='black'),
-                text=["⭐ You"],
-                textposition="top center",
-                showlegend=True
-            )
+    return fig, labels
 
-        return fig
