@@ -1,14 +1,19 @@
+
 import json
 import os
 import plotly.express as px
 import pandas as pd
+from openai import OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
+PCA_TERMS_PATH = "outputs/pca_terms.json"  # assumes we save top PCA terms there
 
 class VisualizationAgent:
     def __init__(self, api_key=None):
         self.api_key = api_key
+        if api_key:
+            self.client = OpenAI(api_key=api_key)
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -24,10 +29,12 @@ class VisualizationAgent:
         except json.JSONDecodeError:
             pass
         return {
-            "x_label": "Dimension 1",
-            "y_label": "Dimension 2",
+            "x_label": "PC1",
             "x_description": "",
-            "y_description": ""
+            "x_variance": 0.0,
+            "y_label": "PC2",
+            "y_description": "",
+            "y_variance": 0.0
         }
 
     def generate_cluster_map(self, founder_embedding_2d=None):
@@ -69,8 +76,9 @@ class VisualizationAgent:
                 "y": False
             },
             title="🧭 VC Landscape by Strategic Identity",
-            width=950,
-            height=600
+            width=1100,
+            height=500,
+            labels={"x": labels["x_label"], "y": labels["y_label"]}
         )
 
         if founder_embedding_2d and len(founder_embedding_2d) == 2:
@@ -93,11 +101,33 @@ class VisualizationAgent:
         return fig, labels
 
     def regenerate_axis_labels(self):
-        labels = {
-            "x_label": "Thesis Depth",
-            "x_description": "Firms on the right articulate highly detailed investment theses, often with academic or technical framing. Left-side firms focus on generalist, opportunistic, or ambiguous strategies.",
-            "y_label": "Stage Specialization",
-            "y_description": "Higher values represent firms focused on early-stage, pre-seed, and innovation bets. Lower values lean toward growth-stage, scaling, or later-stage capital deployments."
+        if not os.path.exists(PCA_TERMS_PATH):
+            return  # Must include top terms for each principal component
+
+        with open(PCA_TERMS_PATH, "r") as f:
+            pca_terms = json.load(f)
+
+        def query_label(pc_terms, axis):
+            terms_str = ", ".join(pc_terms)
+            prompt = f"You are a VC analyst. What does this semantic axis represent based on the terms: {terms_str}? Return a short label and a 1-2 sentence description."
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.6
+            )
+            return response.choices[0].message.content.strip().split("\n", 1)
+
+        x_label, x_description = query_label(pca_terms["PC1_terms"], "x")
+        y_label, y_description = query_label(pca_terms["PC2_terms"], "y")
+
+        axis_labels = {
+            "x_label": x_label,
+            "x_description": x_description,
+            "x_variance": pca_terms.get("PC1_variance", 0.0),
+            "y_label": y_label,
+            "y_description": y_description,
+            "y_variance": pca_terms.get("PC2_variance", 0.0)
         }
+
         with open(DIMENSION_LABELS_PATH, "w") as f:
-            json.dump(labels, f, indent=2)
+            json.dump(axis_labels, f, indent=2)
