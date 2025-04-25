@@ -106,7 +106,7 @@ if vc_csv:
 
             st.info("Embedding profile...")
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, embedder)
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
             st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5] if isinstance(vc_embedding, list) else vc_embedding)
 
             st.info("Interpreting strategy...")
