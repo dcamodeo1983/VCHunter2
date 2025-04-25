@@ -160,27 +160,10 @@ if vc_csv:
 
             st.info("Embedding profile...")
             portfolio_text = "
-".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio]).join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
-            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5] if isinstance(vc_embedding, list) else vc_embedding)
+".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
-            if strategy_summary:
-                lines = strategy_summary.split("\n")
-                for line in lines:
-                    if line.lower().startswith("category"):
-                        st.markdown(f"### 🧠 Strategic Identity")
-                    elif line.lower().startswith("rationale"):
-                        st.markdown(f"**Rationale:** {line.replace('Rationale:', '').strip()}")
-                    elif line.lower().startswith("motivational signals"):
-                        st.markdown(f"**Motivational Signals:** {line.replace('Motivational Signals:', '').strip()}")
-                    else:
-                        st.markdown(line)
-
-                vc_profile = {
-                    "name": url.split("//")[-1].replace("www.", ""),
-                    "url": url,
-                    "embedding": vc_embedding,
-                    "portfolio_size": len(structured_portfolio),
+            st.info("Interpreting strategy...")
+            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
                     "strategy_summary": strategy_summary,
                     "category": None,
                     "motivational_signals": [],
