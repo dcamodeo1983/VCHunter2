@@ -128,6 +128,75 @@ if uploaded_file:
         else:
             st.error("❌ No valid embedding returned.")
 
+# === VC URL Upload ===
+st.divider()
+st.header("📥 Upload CSV of VC URLs")
+
+vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
+
+if vc_csv:
+    df = pd.read_csv(vc_csv)
+    urls = df['url'].dropna().unique().tolist()
+    st.success(f"✅ Loaded {len(urls)} VC URLs")
+
+    for url in urls:
+        with st.expander(f"🔍 {url}"):
+            scraper = VCWebsiteScraperAgent()
+            enricher = PortfolioEnricherAgent()
+            interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
+
+            st.info("Scraping site text...")
+            vc_site_text = scraper.scrape_text(url)
+
+            st.info("Extracting portfolio entries...")
+            portfolio_links = scraper.find_portfolio_links(url)
+            if portfolio_links:
+                st.info(f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping...")
+                structured_portfolio = enricher.extract_portfolio_entries_from_pages(portfolio_links)
+            else:
+                st.warning("⚠️ No portfolio page links found. Using homepage instead.")
+                structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
+            st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
+
+            st.info("Embedding profile...")
+            portfolio_text = "
+".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
+
+            st.info("Interpreting strategy...")
+            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+            st.write("🔍 Embedding type and preview:", type(vc_embedding), vc_embedding[:5] if isinstance(vc_embedding, list) else vc_embedding)
+
+            if strategy_summary:
+                lines = strategy_summary.split("
+")
+                for line in lines:
+                    if line.lower().startswith("category"):
+                        st.markdown(f"### 🧠 Strategic Identity")
+                    elif line.lower().startswith("rationale"):
+                        st.markdown(f"**Rationale:** {line.replace('Rationale:', '').strip()}")
+                    elif line.lower().startswith("motivational signals"):
+                        st.markdown(f"**Motivational Signals:** {line.replace('Motivational Signals:', '').strip()}")
+                    else:
+                        st.markdown(line)
+
+                vc_profile = {
+                    "name": url.split("//")[-1].replace("www.", ""),
+                    "url": url,
+                    "embedding": vc_embedding,
+                    "portfolio_size": len(structured_portfolio),
+                    "strategy_summary": strategy_summary,
+                    "category": None,
+                    "motivational_signals": [],
+                    "cluster_id": None,
+                    "coordinates": [None, None]
+                }
+
+                cached_profiles = load_vc_profiles()
+                cached_profiles = [p for p in cached_profiles if p['url'] != url]
+                cached_profiles.append(vc_profile)
+                save_vc_profiles(cached_profiles)
+
 # === Clustering + Categorization ===
 st.divider()
 st.subheader("🧭 VC Landscape Categorization")
