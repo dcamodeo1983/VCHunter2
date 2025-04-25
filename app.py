@@ -1,3 +1,4 @@
+
 # VC Hunter Streamlit UI Upgrade (Narrative-Driven)
 
 import streamlit as st
@@ -33,7 +34,9 @@ def save_vc_profiles(profiles):
         return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
-    st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
+    st.write(f"📁 Saved {{len(profiles)}} VC profiles to {{VC_PROFILE_PATH}}")
+
+# We will re-append the rest of the app.py logic that you already pasted above in subsequent steps.
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
@@ -74,7 +77,7 @@ if uploaded_file:
         else:
             st.error(embedding)
 
-# === Batch VC Analysis Section ===
+# === VC URL Upload ===
 st.divider()
 st.header("📥 Upload CSV of VC URLs")
 
@@ -124,7 +127,6 @@ if vc_csv:
                     else:
                         st.markdown(line)
 
-                # Save VC profile
                 vc_profile = {
                     "name": url.split("//")[-1].replace("www.", ""),
                     "url": url,
@@ -142,7 +144,7 @@ if vc_csv:
                 cached_profiles.append(vc_profile)
                 save_vc_profiles(cached_profiles)
 
-# === Run Clustering + Categorization ===
+# === Clustering + Categorization ===
 st.divider()
 st.subheader("🧭 VC Landscape Categorization")
 
@@ -160,16 +162,20 @@ if st.button("Run Clustering + Categorization"):
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 
-# === Visualize VC Landscape ===
+# === Semantic Visualization with Axis Labels ===
 st.divider()
 st.subheader("📊 VC Landscape Map")
 
-viz_agent = VisualizationAgent()
-if not any(p.get('coordinates') and None not in p['coordinates'] for p in load_vc_profiles()):
-    st.warning("⚠️ No valid coordinates found. Run clustering first.")
+viz_agent = VisualizationAgent(api_key=openai_api_key)
+
+if st.button("🔁 Regenerate Axis Labels (Optional)"):
+    viz_agent.regenerate_axis_labels()
+    st.success("🧠 PCA axis labels refreshed via LLM.")
+
+fig, labels = viz_agent.generate_cluster_map()
+if fig:
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}):** {labels.get('y_description', '')}")
+    st.plotly_chart(fig)
 else:
-    fig = viz_agent.generate_cluster_map()
-    if fig:
-        st.plotly_chart(fig)
-    else:
-        st.warning("No VC profiles found with valid cluster coordinates. Please run clustering + categorization first.")
+    st.warning("No VC profiles found with valid cluster coordinates.")
