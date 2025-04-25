@@ -197,13 +197,16 @@ if st.button("Run Clustering + Categorization"):
     categorized_profiles = categorize_agent.categorize_clusters()
     st.success("Categorization complete.")
 
-    st.balloons()
-    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
-
 
     dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
     dim_agent.generate_axis_labels()
-
+    st.info("Interpreting Strategic Clusters...")
+    from agents.cluster_interpreter_agent import ClusterInterpreterAgent
+    cluster_namer = ClusterInterpreterAgent(api_key=openai_api_key)
+    cluster_labels = cluster_namer.interpret_clusters()
+    st.success("Clusters interpreted successfully!")
+    st.balloons()
+    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 # === Semantic Visualization with Axis Labels ===
 st.divider()
 st.subheader("📊 VC Landscape Map")
