@@ -160,8 +160,7 @@ if vc_csv:
 
             st.info("Embedding profile...")
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-
-                    "strategy_summary": strategy_summary,
+            "strategy_summary": strategy_summary,
                     "category": None,
                     "motivational_signals": [],
                     "cluster_id": None,
