@@ -1,7 +1,8 @@
-import json
 import numpy as np
-from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import json
+import os
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -11,8 +12,10 @@ class ClusteringAgent:
         self.pca = None
 
     def load_profiles(self):
-        with open(VC_PROFILE_PATH, "r") as f:
-            return json.load(f)
+        if os.path.exists(VC_PROFILE_PATH):
+            with open(VC_PROFILE_PATH, "r") as f:
+                return json.load(f)
+        return []
 
     def save_profiles(self, profiles):
         with open(VC_PROFILE_PATH, "w") as f:
@@ -21,22 +24,23 @@ class ClusteringAgent:
     def cluster(self):
         profiles = self.load_profiles()
         embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
+
         if len(embeddings) < 2:
-            return []
+            raise ValueError("Not enough valid embeddings to perform clustering.")
 
         X = np.array(embeddings)
 
-        # Run PCA
+        # PCA for visualization
         self.pca = PCA(n_components=2)
-        X_pca = self.pca.fit_transform(X)
+        coords = self.pca.fit_transform(X)
 
-        # Run KMeans clustering
+        # KMeans clustering
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
-        clusters = kmeans.fit_predict(X_pca)
+        cluster_ids = kmeans.fit_predict(X)
 
         for i, profile in enumerate(profiles):
-            profile["cluster_id"] = int(clusters[i])
-            profile["coordinates"] = X_pca[i].tolist()
+            profile["coordinates"] = coords[i].tolist()
+            profile["cluster_id"] = int(cluster_ids[i])
 
         self.save_profiles(profiles)
         return profiles
