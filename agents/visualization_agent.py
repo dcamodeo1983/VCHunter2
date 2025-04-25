@@ -1,79 +1,104 @@
-import json
-import os
 import plotly.express as px
 import pandas as pd
-from openai import OpenAI
+import numpy as np
+import os
+import json
+from sklearn.decomposition import PCA
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 
 class VisualizationAgent:
     def __init__(self, api_key=None):
-        self.api_key = api_key
-        if api_key:
-            self.client = OpenAI(api_key=api_key)
+        self.api_key = api_key  # Reserved for future use
+        self.color_palette = px.colors.qualitative.Safe  # Use discrete colors
 
     def load_profiles(self):
-        if not os.path.exists(VC_PROFILE_PATH):
-            return []
-        try:
+        if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
-        except json.JSONDecodeError:
-            return []
+        return []
 
-    def load_axis_labels(self):
-        if not os.path.exists(DIMENSION_LABELS_PATH):
-            return {}
-        try:
+    def load_dimension_labels(self):
+        if os.path.exists(DIMENSION_LABELS_PATH):
             with open(DIMENSION_LABELS_PATH, "r") as f:
                 return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+        return {
+            "x_label": "PC1",
+            "y_label": "PC2",
+            "x_description": "",
+            "y_description": ""
+        }
 
     def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None):
         profiles = self.load_profiles()
-        data = [p for p in profiles if p.get("coordinates")]
+        embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
 
-        if not data:
+        if not embeddings:
             return None, {}
 
+        pca = PCA(n_components=2, random_state=42)
+        coords = pca.fit_transform(embeddings)
+
+        for profile, (x, y) in zip(profiles, coords):
+            profile["pca_x"] = float(x)
+            profile["pca_y"] = float(y)
+
         df = pd.DataFrame({
-            "name": [p["name"] for p in data],
-            "x": [p["coordinates"][0] for p in data],
-            "y": [p["coordinates"][1] for p in data],
-            "cluster": [p.get("cluster_id", -1) for p in data],
-            "label": [p.get("category", "Unknown") for p in data],
+            "VC Name": [p["name"] for p in profiles],
+            "Cluster": [p.get("cluster_id", -1) for p in profiles],
+            "X": [p["pca_x"] for p in profiles],
+            "Y": [p["pca_y"] for p in profiles],
+            "Strategy Summary": [p.get("strategy_summary", "") for p in profiles],
+            "Motivational Signals": [", ".join(p.get("motivational_signals", [])) for p in profiles],
+            # "Portfolio Size": [p.get("portfolio_size") for p in profiles],
         })
+
+        dim_labels = self.load_dimension_labels()
+        unique_clusters = sorted(df["Cluster"].unique())
+        cluster_color_map = {
+            cluster_id: self.color_palette[i % len(self.color_palette)]
+            for i, cluster_id in enumerate(unique_clusters)
+        }
+
+        df["Color"] = df["Cluster"].map(cluster_color_map)
 
         fig = px.scatter(
             df,
-            x="x",
-            y="y",
-            color="cluster",
-            hover_data=["name", "label"],
-            labels={"x": "PCA Dimension 1", "y": "PCA Dimension 2"},
-            title="VC Strategy Landscape"
+            x="X",
+            y="Y",
+            color="Cluster",
+            color_discrete_map=cluster_color_map,
+            hover_data=[
+                "VC Name",
+                "Strategy Summary",
+                "Motivational Signals",
+                # "Portfolio Size",
+            ],
+            labels={
+                "X": dim_labels.get("x_label", "PC1"),
+                "Y": dim_labels.get("y_label", "PC2")
+            },
+            title="🧭 VC Landscape by Strategic Identity",
+            width=950,
+            height=650
         )
 
-        if founder_embedding_2d and len(founder_embedding_2d) == 2:
-            # Match the founder cluster to the VC color
-            founder_color = None
-            if founder_cluster_id is not None:
-                # Map cluster ID to color used by Plotly
-                cluster_colors = fig.data
-                cluster_index_map = {int(trace.name): trace.marker.color for trace in cluster_colors if trace.name.isdigit()}
-                founder_color = cluster_index_map.get(int(founder_cluster_id), "black")
-
+        if founder_embedding_2d is not None:
+            founder_x, founder_y = founder_embedding_2d
             fig.add_scatter(
-                x=[founder_embedding_2d[0]],
-                y=[founder_embedding_2d[1]],
-                mode="markers+text",
-                marker=dict(symbol="star", size=14, color=founder_color or "black"),
-                text=["⭐ You"],
-                textposition="top center",
-                name="You"
+                x=[founder_x],
+                y=[founder_y],
+                mode="markers",
+                marker_symbol="star",
+                marker_size=20,
+                marker_color="gold",
+                name="Founder Idea"
             )
 
-        fig.update_layout(showlegend=True)
-        return fig, self.load_axis_labels()
+        fig.update_layout(
+            xaxis_title=f"{dim_labels['x_label']} ({pca.explained_variance_ratio_[0]*100:.1f}% variance)",
+            yaxis_title=f"{dim_labels['y_label']} ({pca.explained_variance_ratio_[1]*100:.1f}% variance)"
+        )
+
+        return fig, dim_labels
