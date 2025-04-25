@@ -36,10 +36,12 @@ class FounderDocReaderAgent:
             print(f"❌ PyPDF2 fallback also failed: {e}")
             return ""
 
-    def _extract_docx(self, file):
-        try:
-            doc = docx.Document(io.BytesIO(file.read()))
-            return "\n".join([para.text for para in doc.paragraphs if para.text.strip()]).strip()
-        except Exception as e:
-            print(f"❌ DOCX extraction failed: {e}")
-            return ""
+def _extract_docx(self, file):
+    try:
+        doc = docx.Document(io.BytesIO(file.read()))
+        return "\n".join([para.text for para in doc.paragraphs if para.text.strip()]).strip()
+    except Exception as e:
+        print(f"❌ DOCX extraction failed: {e}")
+        return ""
+
+
