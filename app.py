@@ -205,6 +205,20 @@ if st.button("Run Clustering + Categorization"):
     cluster_namer = ClusterInterpreterAgent(api_key=openai_api_key)
     cluster_labels = cluster_namer.interpret_clusters()
     st.success("Clusters interpreted successfully!")
+        ####
+    if uploaded_file and isinstance(embedding, list):
+        founder_2d = cluster_agent.transform(embedding)  # Transform founder into PCA space
+
+        matcher = FounderMatcherAgent(embedding)
+        top_matches = matcher.match(top_k=5)
+        
+        if top_matches:
+            st.subheader("🎯 Top VC Matches")
+            for match in top_matches:
+                st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+                st.markdown(f"• Strategy: {match['rationale']}")
+                st.markdown("---")
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
 # === Semantic Visualization with Axis Labels ===
