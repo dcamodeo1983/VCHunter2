@@ -31,7 +31,7 @@ class VisualizationAgent:
         except json.JSONDecodeError:
             return {}
 
-    def generate_cluster_map(self, founder_embedding_2d=None):
+    def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None):
         profiles = self.load_profiles()
         data = [p for p in profiles if p.get("coordinates")]
 
@@ -56,13 +56,20 @@ class VisualizationAgent:
             title="VC Strategy Landscape"
         )
 
-        # Plot founder dot
         if founder_embedding_2d and len(founder_embedding_2d) == 2:
+            # Match the founder cluster to the VC color
+            founder_color = None
+            if founder_cluster_id is not None:
+                # Map cluster ID to color used by Plotly
+                cluster_colors = fig.data
+                cluster_index_map = {int(trace.name): trace.marker.color for trace in cluster_colors if trace.name.isdigit()}
+                founder_color = cluster_index_map.get(int(founder_cluster_id), "black")
+
             fig.add_scatter(
                 x=[founder_embedding_2d[0]],
                 y=[founder_embedding_2d[1]],
                 mode="markers+text",
-                marker=dict(symbol="star", size=14, color="black"),
+                marker=dict(symbol="star", size=14, color=founder_color or "black"),
                 text=["⭐ You"],
                 textposition="top center",
                 name="You"
