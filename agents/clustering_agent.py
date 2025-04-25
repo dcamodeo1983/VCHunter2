@@ -1,6 +1,6 @@
-import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+import numpy as np
 import json
 import os
 
@@ -9,7 +9,7 @@ VC_PROFILE_PATH = "outputs/vc_profiles.json"
 class ClusteringAgent:
     def __init__(self, n_clusters=5):
         self.n_clusters = n_clusters
-        self.pca = None
+        self.pca = None  # Save PCA model here for reuse
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -25,27 +25,28 @@ class ClusteringAgent:
         profiles = self.load_profiles()
         embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
 
-        if len(embeddings) < 2:
-            raise ValueError("Not enough valid embeddings to perform clustering.")
+        if not embeddings:
+            print("❌ No embeddings found for clustering.")
+            return []
 
         X = np.array(embeddings)
-
-        # PCA for visualization
-        self.pca = PCA(n_components=2)
+        self.pca = PCA(n_components=2, random_state=42)
         coords = self.pca.fit_transform(X)
 
-        # KMeans clustering
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
-        cluster_ids = kmeans.fit_predict(X)
+        labels = kmeans.fit_predict(X)
 
-        for i, profile in enumerate(profiles):
-            profile["coordinates"] = coords[i].tolist()
-            profile["cluster_id"] = int(cluster_ids[i])
+        # Save coordinates and cluster ID
+        for profile, label, (x, y) in zip(profiles, labels, coords):
+            profile["cluster_id"] = int(label)
+            profile["pca_x"] = float(x)
+            profile["pca_y"] = float(y)
 
         self.save_profiles(profiles)
         return profiles
 
     def transform(self, embedding):
-        if self.pca:
-            return self.pca.transform([embedding])[0].tolist()
-        return [None, None]
+        if self.pca is None:
+            raise ValueError("PCA not trained yet. Run cluster() first.")
+        embedding = np.array(embedding).reshape(1, -1)  # Ensure 2D
+        return self.pca.transform(embedding)[0]
