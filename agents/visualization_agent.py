@@ -79,13 +79,14 @@ class VisualizationAgent:
             y="Y",
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
-            hover_data=[
-                "VC Name",
-                "Cluster Name",
-                "Strategy Summary",
-                "Motivational Signals",
-                # "Portfolio Size",
-            ],
+            hover_data={
+                "VC Name": True,
+                "Cluster Name": True,
+                "Strategy Summary": True,
+                "Motivational Signals": True,
+    # "Portfolio Size": True,  # Optional
+            },
+
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
                 "Y": dim_labels.get("y_label", "PC2")
@@ -94,6 +95,15 @@ class VisualizationAgent:
             width=950,
             height=650
         )
+        fig.update_traces(
+           hovertemplate="<br>".join([
+               "Name: %{customdata[0]}",
+               "Cluster: %{customdata[1]}",
+               "Focus: %{customdata[2]}",
+               "Signals: %{customdata[3]}"
+          ])
+        )
+
 
         if founder_embedding_2d is not None:
             founder_x, founder_y = founder_embedding_2d
