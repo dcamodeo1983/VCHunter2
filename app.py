@@ -192,9 +192,6 @@ if st.button("Run Clustering + Categorization"):
     clustered_profiles = cluster_agent.cluster()
     st.success("Clustering complete.")
 
-    if uploaded_file and isinstance(embedding, list):
-        founder_2d = cluster_agent.transform(embedding)
-
     st.info("Categorizing each cluster...")
     categorize_agent = CategorizerAgent(api_key=openai_api_key)
     categorized_profiles = categorize_agent.categorize_clusters()
@@ -202,6 +199,7 @@ if st.button("Run Clustering + Categorization"):
 
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
 
     dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
     dim_agent.generate_axis_labels()
@@ -212,9 +210,7 @@ st.subheader("📊 VC Landscape Map")
 
 viz_agent = VisualizationAgent(api_key=openai_api_key)
 
-if st.button("🔁 Regenerate Axis Labels (Optional)"):
-    viz_agent.regenerate_axis_labels()
-    st.success("🧠 PCA axis labels refreshed via LLM.")
+
 
 fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d, founder_cluster_id=founder_cluster_id)
 if fig:
