@@ -14,6 +14,7 @@ from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
 from agents.clustering_agent import ClusteringAgent
 from agents.categorizer_agent import CategorizerAgent
 from agents.visualization_agent import VisualizationAgent
+from agents.dimension_explainer_agent import DimensionExplainerAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
@@ -37,8 +38,6 @@ def save_vc_profiles(profiles):
         json.dump(profiles, f, indent=2)
     st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
 
-# We will re-append the rest of the app.py logic that you already pasted above in subsequent steps.
-
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
 st.title("🧠 VC Hunter: Founder Intelligence Report")
@@ -51,6 +50,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 embedder = EmbedderAgent(api_key=openai_api_key)
 
 # === Upload & Run ===
+founder_2d = None
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 if uploaded_file:
     reader = FounderDocReaderAgent()
@@ -155,6 +155,9 @@ if st.button("Run Clustering + Categorization"):
     clustered_profiles = cluster_agent.cluster()
     st.success("Clustering complete.")
 
+    if uploaded_file and isinstance(embedding, list):
+        founder_2d = cluster_agent.transform(embedding)
+
     st.info("Categorizing each cluster...")
     categorize_agent = CategorizerAgent(api_key=openai_api_key)
     categorized_profiles = categorize_agent.categorize_clusters()
@@ -162,6 +165,10 @@ if st.button("Run Clustering + Categorization"):
 
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
+    # Automatically regenerate dimension labels
+    dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
+    dim_agent.generate_axis_labels()
 
 # === Semantic Visualization with Axis Labels ===
 st.divider()
@@ -173,7 +180,7 @@ if st.button("🔁 Regenerate Axis Labels (Optional)"):
     viz_agent.regenerate_axis_labels()
     st.success("🧠 PCA axis labels refreshed via LLM.")
 
-fig, labels = viz_agent.generate_cluster_map()
+fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d)
 if fig:
     st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
     st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
