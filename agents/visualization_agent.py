@@ -30,7 +30,7 @@ class VisualizationAgent:
             "x_description": "",
             "y_description": ""
         }
-    
+
     def load_cluster_labels(self):
         if os.path.exists(CLUSTER_LABELS_PATH):
             with open(CLUSTER_LABELS_PATH, "r") as f:
@@ -59,8 +59,8 @@ class VisualizationAgent:
             "Cluster Name": [cluster_labels.get(str(p.get("cluster_id", -1)), {}).get("name", f"Cluster {p.get('cluster_id', -1)}") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
-            "Strategic Tags": [", ".join(p.get("tags", [])) if isinstance(p.get("tags", []), list) else "" for p in profiles],  # ✅ Use tags
-            "Motivational Signals": [", ".join(p.get("motivational_signals", [])) if isinstance(p.get("motivational_signals", []), list) else "No signals" for p in profiles],  # ✅ Use fallback
+            "Strategic Tags": [", ".join(p.get("tags", [])) if isinstance(p.get("tags", []), list) else "" for p in profiles],
+            "Motivational Signals": [", ".join(p.get("motivational_signals", [])) if isinstance(p.get("motivational_signals", []), list) else "No signals" for p in profiles],
         })
 
         dim_labels = self.load_dimension_labels()
@@ -87,8 +87,32 @@ class VisualizationAgent:
             height=650
         )
 
-    # ✅ Ensure hover data is clean
         fig.update_traces(
             customdata=df[["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"]].values,
             hovertemplate="<br>".join([
+                "<b>%{customdata[0]}</b>",
+                "Cluster: %{customdata[1]}",
+                "Focus: %{customdata[2]}",
+                "Signals: %{customdata[3]}"
+            ])
+        )
 
+        if founder_embedding_2d is not None:
+            founder_x, founder_y = founder_embedding_2d
+            fig.add_scatter(
+                x=[founder_x],
+                y=[founder_y],
+                mode="markers",
+                marker_symbol="star",
+                marker_size=20,
+                marker_color="gold",
+                name="Founder Idea"
+            )
+
+        fig.update_layout(
+            xaxis_title=f"{dim_labels['x_label']} ({pca.explained_variance_ratio_[0]*100:.1f}% variance)",
+            yaxis_title=f"{dim_labels['y_label']} ({pca.explained_variance_ratio_[1]*100:.1f}% variance)",
+            hovermode="closest"
+        )
+
+        return fig, dim_labels
