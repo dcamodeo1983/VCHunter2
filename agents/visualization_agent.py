@@ -90,24 +90,20 @@ class VisualizationAgent:
             height=650
         )
         # Clean strategic tags into a readable string
-df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else "")
-df["Motivational Signals"] = df["Motivational Signals"].apply(lambda sigs: ", ".join(sigs) if isinstance(sigs, list) else "")
+# 1. Make sure Strategic Tags and Motivational Signals are strings
+df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else (tags or ""))
+df["Motivational Signals"] = df["Motivational Signals"].apply(lambda sigs: ", ".join(sigs) if isinstance(sigs, list) else (sigs or ""))
 
+# 2. Update traces
 fig.update_traces(
+    customdata=df[["VC Name", "Cluster", "Strategic Tags", "Motivational Signals"]].values,
     hovertemplate="<br>".join([
-         "<b>%{customdata[0]}</b>",                # VC Name bold
-         "Cluster: %{customdata[1]}",
-         "Focus: %{customdata[2]}",
-         "Signals: %{customdata[3]}"
-    ]),
-    customdata=np.stack((
-        df["VC Name"].astype(str),
-        df["Cluster"].astype(str),
-        df["Strategic Tags"],
-        df["Motivational Signals"]
-    ), axis=-1)
+        "<b>%{customdata[0]}</b>",          # VC Name bold
+        "Cluster: %{customdata[1]}",
+        "Focus: %{customdata[2]}",
+        "Signals: %{customdata[3]}"
+    ])
 )
-
         if founder_embedding_2d is not None:
             founder_x, founder_y = founder_embedding_2d
             fig.add_scatter(
