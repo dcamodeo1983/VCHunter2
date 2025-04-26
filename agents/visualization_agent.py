@@ -59,9 +59,8 @@ class VisualizationAgent:
             "Cluster Name": [cluster_labels.get(str(p.get("cluster_id", -1)), {}).get("name", f"Cluster {p.get('cluster_id', -1)}") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
-            "Strategy Summary": [p.get("strategy_summary", "") for p in profiles],
+            "Strategic Tags": [p.get("strategy_summary", "") for p in profiles],
             "Motivational Signals": [", ".join(p.get("motivational_signals", [])) for p in profiles],
-            # "Portfolio Size": [p.get("portfolio_size") for p in profiles],
         })
 
         dim_labels = self.load_dimension_labels()
@@ -79,8 +78,6 @@ class VisualizationAgent:
             y="Y",
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
-            
-
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
                 "Y": dim_labels.get("y_label", "PC2")
@@ -89,21 +86,22 @@ class VisualizationAgent:
             width=950,
             height=650
         )
-        # Clean strategic tags into a readable string
-# 1. Make sure Strategic Tags and Motivational Signals are strings
-df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else (tags or ""))
-df["Motivational Signals"] = df["Motivational Signals"].apply(lambda sigs: ", ".join(sigs) if isinstance(sigs, list) else (sigs or ""))
 
-# 2. Update traces
-fig.update_traces(
-    customdata=df[["VC Name", "Cluster", "Strategic Tags", "Motivational Signals"]].values,
-    hovertemplate="<br>".join([
-        "<b>%{customdata[0]}</b>",          # VC Name bold
-        "Cluster: %{customdata[1]}",
-        "Focus: %{customdata[2]}",
-        "Signals: %{customdata[3]}"
-    ])
-)
+        # ✅ Clean up Strategic Tags and Motivational Signals
+        df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else (tags or ""))
+        df["Motivational Signals"] = df["Motivational Signals"].apply(lambda sigs: ", ".join(sigs) if isinstance(sigs, list) else (sigs or ""))
+
+        # ✅ Update the hovertemplate
+        fig.update_traces(
+            customdata=df[["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"]].values,
+            hovertemplate="<br>".join([
+                "<b>%{customdata[0]}</b>",
+                "Cluster: %{customdata[1]}",
+                "Focus: %{customdata[2]}",
+                "Signals: %{customdata[3]}"
+            ])
+        )
+
         if founder_embedding_2d is not None:
             founder_x, founder_y = founder_embedding_2d
             fig.add_scatter(
@@ -118,7 +116,8 @@ fig.update_traces(
 
         fig.update_layout(
             xaxis_title=f"{dim_labels['x_label']} ({pca.explained_variance_ratio_[0]*100:.1f}% variance)",
-            yaxis_title=f"{dim_labels['y_label']} ({pca.explained_variance_ratio_[1]*100:.1f}% variance)"
+            yaxis_title=f"{dim_labels['y_label']} ({pca.explained_variance_ratio_[1]*100:.1f}% variance)",
+            hovermode="closest"
         )
 
         return fig, dim_labels
