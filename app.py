@@ -165,7 +165,8 @@ if vc_csv:
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
             tagger = StrategicTaggerAgent(api_key=openai_api_key)
             vc_tags = tagger.generate_tags(strategy_summary)    
-            
+            print(f"✅ Generated tags for {url}: {vc_tags}")
+
             vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
 
             vc_profile = {
