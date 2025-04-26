@@ -27,54 +27,67 @@ class DimensionExplainerAgent:
 
     def generate_axis_labels(self):
         profiles = self.load_profiles()
-        vectors = [p['embedding'] for p in profiles if isinstance(p.get('embedding'), list) and len(p['embedding']) == EMBEDDING_DIM]
-        texts = [p['strategy_summary'] for p in profiles if p.get('strategy_summary')]
+        embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
 
-        if len(vectors) < 2 or len(texts) < 2:
-            return {"error": "Not enough data to perform PCA and TF-IDF analysis."}
+        if not embeddings:
+            return {}
 
-        X = np.array(vectors)
-        pca = PCA(n_components=2)
+        X = np.array(embeddings)
+        pca = PCA(n_components=2, random_state=42)
         pca.fit(X)
-        variance = pca.explained_variance_ratio_
 
-        tfidf = TfidfVectorizer(stop_words='english', max_features=3000)
-        tfidf_matrix = tfidf.fit_transform(texts)
-        terms = tfidf.get_feature_names_out()
+        variance_ratios = pca.explained_variance_ratio_
 
-        components = pca.components_
-        term_scores_pc1 = np.dot(tfidf_matrix.toarray(), components[0])
-        term_scores_pc2 = np.dot(tfidf_matrix.toarray(), components[1])
-        top_pc1 = [terms[i] for i in np.argsort(term_scores_pc1)[-TOP_N_TERMS:][::-1]]
-        top_pc2 = [terms[i] for i in np.argsort(term_scores_pc2)[-TOP_N_TERMS:][::-1]]
+        summaries = []
+        for p in profiles:
+            name = p.get("name", "")
+            cat = (p.get("category") or "Unknown").split("\n")[0].replace("Category:", "").strip()
+            rationale_line = next((line for line in p.get("strategy_summary", "").splitlines() if line.lower().startswith("rationale")), "")
+            summaries.append(f"{name}: {cat} — {rationale_line.strip()}")
 
-        prompt = f"""You are an expert analyst interpreting a PCA-reduced embedding space of VC firm strategies.
-The X-axis is defined by: {', '.join(top_pc1)}.
-The Y-axis is defined by: {', '.join(top_pc2)}.
-Please assign an intuitive axis label and a one-sentence description for each dimension.
+        prompt = f"""
+You are a strategic analyst reviewing a 2D PCA map of venture capital firms.
+
+The PCA dimensions have the following explained variances:
+- Dimension 1: {variance_ratios[0]*100:.1f}% of variance
+- Dimension 2: {variance_ratios[1]*100:.1f}% of variance
+
+Each point represents a VC firm positioned by their investment strategies.
+
+Here are some examples of VC summaries in this space:
+{chr(10).join(summaries[:30])}
+
+Propose:
+- A short label for Dimension 1 (X axis)
+- A short label for Dimension 2 (Y axis)
+- Brief directional descriptions for each
 
 Respond in this format:
-Dimension 1: <short label> — <left vs right description>
-Dimension 2: <short label> — <bottom vs top description>"""
+Dimension 1: <short label> — <left to right interpretation>
+Dimension 2: <short label> — <bottom to top interpretation>
+"""
 
         try:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.5
+                temperature=0.5,
+                max_tokens=600
             )
             result = response.choices[0].message.content.strip()
+
+            # Parse GPT response
             lines = result.splitlines()
             x_label, x_description = lines[0].split("—")
             y_label, y_description = lines[1].split("—")
 
             labels = {
                 "x_label": x_label.replace("Dimension 1:", "").strip(),
-                "x_description": x_description.strip(),
-                "x_variance": float(variance[0]),
                 "y_label": y_label.replace("Dimension 2:", "").strip(),
+                "x_description": x_description.strip(),
                 "y_description": y_description.strip(),
-                "y_variance": float(variance[1])
+                "x_variance": variance_ratios[0],
+                "y_variance": variance_ratios[1]
             }
 
             self.save_labels(labels)
@@ -86,7 +99,5 @@ Dimension 2: <short label> — <bottom vs top description>"""
                 "y_label": "Dimension 2",
                 "x_description": "Left = ?, Right = ?",
                 "y_description": "Bottom = ?, Top = ?",
-                "x_variance": 0.0,
-                "y_variance": 0.0,
                 "error": str(e)
             }
