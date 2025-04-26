@@ -6,6 +6,7 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 from agents.founder_doc_reader_agent import FounderDocReaderAgent
+from agents.strategic_tagger_agent import StrategicTaggerAgent
 from agents.llm_summarizer_agent import LLMSummarizerAgent
 from agents.embedder_agent import EmbedderAgent
 from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
