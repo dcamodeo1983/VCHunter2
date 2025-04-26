@@ -91,23 +91,23 @@ class VisualizationAgent:
         )
         # Clean strategic tags into a readable string
 df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else "")
+df["Motivational Signals"] = df["Motivational Signals"].apply(lambda sigs: ", ".join(sigs) if isinstance(sigs, list) else "")
 
-# Update hover template
-fig.update_traces(
-    hovertemplate=
-        "<b>%{customdata[0]}</b><br>" +  # VC Name
-        "Strategic Category: %{customdata[1]}<br>" +
-        "Strategic Tags: %{customdata[2]}<extra></extra>",
-    customdata=np.stack((df["VC Name"], df["Strategy Summary"], df["Strategic Tags"]), axis=-1)
-)
 fig.update_traces(
     hovertemplate="<br>".join([
-         "Name: %{customdata[0]}",
+         "<b>%{customdata[0]}</b>",                # VC Name bold
          "Cluster: %{customdata[1]}",
          "Focus: %{customdata[2]}",
          "Signals: %{customdata[3]}"
-          ])
-        )
+    ]),
+    customdata=np.stack((
+        df["VC Name"],
+        df["Cluster"],
+        df["Strategic Tags"],
+        df["Motivational Signals"]
+    ), axis=-1)
+)
+
 
 
         if founder_embedding_2d is not None:
