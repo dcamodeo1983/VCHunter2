@@ -101,14 +101,12 @@ fig.update_traces(
          "Signals: %{customdata[3]}"
     ]),
     customdata=np.stack((
-        df["VC Name"],
-        df["Cluster"],
+        df["VC Name"].astype(str),
+        df["Cluster"].astype(str),
         df["Strategic Tags"],
         df["Motivational Signals"]
     ), axis=-1)
 )
-
-
 
         if founder_embedding_2d is not None:
             founder_x, founder_y = founder_embedding_2d
