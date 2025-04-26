@@ -206,6 +206,19 @@ if st.button("Run Clustering + Categorization"):
     cluster_labels = cluster_namer.interpret_clusters()
     st.success("Clusters interpreted successfully!")
         ####
+        # === Print Strategic Archetypes ===
+    if os.path.exists("outputs/cluster_labels.json"):
+        with open("outputs/cluster_labels.json", "r") as f:
+            cluster_labels = json.load(f)
+
+        st.subheader("🧠 Strategic Archetypes:")
+        for cluster_id, info in cluster_labels.items():
+            st.markdown(f"**{info.get('name', f'Cluster {cluster_id}')}**")
+            st.markdown(f"{info.get('description', 'No description.')}")
+            st.markdown("---")
+
+
+    ###
     if uploaded_file and isinstance(embedding, list):
         founder_2d = cluster_agent.transform(embedding)  # Transform founder into PCA space
 
