@@ -163,7 +163,9 @@ if vc_csv:
             portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
-
+            tagger = StrategicTaggerAgent(api_key=openai_api_key)
+            vc_tags = tagger.generate_tags(strategy_summary)    
+            
             vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
 
             vc_profile = {
