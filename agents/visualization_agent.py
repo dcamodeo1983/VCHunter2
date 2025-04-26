@@ -100,12 +100,12 @@ fig.update_traces(
         "Strategic Tags: %{customdata[2]}<extra></extra>",
     customdata=np.stack((df["VC Name"], df["Strategy Summary"], df["Strategic Tags"]), axis=-1)
 )
-        fig.update_traces(
-           hovertemplate="<br>".join([
-               "Name: %{customdata[0]}",
-               "Cluster: %{customdata[1]}",
-               "Focus: %{customdata[2]}",
-               "Signals: %{customdata[3]}"
+fig.update_traces(
+    hovertemplate="<br>".join([
+         "Name: %{customdata[0]}",
+         "Cluster: %{customdata[1]}",
+         "Focus: %{customdata[2]}",
+         "Signals: %{customdata[3]}"
           ])
         )
 
