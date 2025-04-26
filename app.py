@@ -183,7 +183,7 @@ if vc_csv:
                 "cluster_id": None,
                 "coordinates": [None, None]
             }              
-
+            print(f"📝 Final VC profile for {url}: {vc_profile}")
             cached_profiles = load_vc_profiles()
             cached_profiles = [p for p in cached_profiles if p['url'] != url]
             cached_profiles.append(vc_profile)
