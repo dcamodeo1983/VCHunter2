@@ -79,13 +79,7 @@ class VisualizationAgent:
             y="Y",
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
-            hover_data={
-                "VC Name": True,
-                "Cluster Name": True,
-                "Strategy Summary": True,
-                "Motivational Signals": True,
-    # "Portfolio Size": True,  # Optional
-            },
+            
 
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
@@ -95,6 +89,17 @@ class VisualizationAgent:
             width=950,
             height=650
         )
+        # Clean strategic tags into a readable string
+df["Strategic Tags"] = df["Strategic Tags"].apply(lambda tags: ", ".join(tags) if isinstance(tags, list) else "")
+
+# Update hover template
+fig.update_traces(
+    hovertemplate=
+        "<b>%{customdata[0]}</b><br>" +  # VC Name
+        "Strategic Category: %{customdata[1]}<br>" +
+        "Strategic Tags: %{customdata[2]}<extra></extra>",
+    customdata=np.stack((df["VC Name"], df["Strategy Summary"], df["Strategic Tags"]), axis=-1)
+)
         fig.update_traces(
            hovertemplate="<br>".join([
                "Name: %{customdata[0]}",
