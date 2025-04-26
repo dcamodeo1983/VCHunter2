@@ -174,6 +174,7 @@ if vc_csv:
                 "embedding": vc_embedding,
                 "portfolio_size": len(structured_portfolio),
                 "strategy_summary": strategy_summary,
+                "strategic_tags": vc_tags,
                 "category": None,
                 "motivational_signals": [],
                 "cluster_id": None,
