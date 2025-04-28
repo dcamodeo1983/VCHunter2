@@ -74,7 +74,7 @@ class VisualizationAgent:
         top_match_names = top_match_names or []  # Default to empty list if None
 
         df["Marker Symbol"] = df["VC Name"].apply(lambda name: "star" if name in top_match_names else "circle")
-        df["Marker Size"] = df["VC Name"].apply(lambda name: 12 if name in top_match_names else 8)
+        df["Marker Size"] = df["VC Name"].apply(lambda name: 10 if name in top_match_names else 5)
 
         fig = px.scatter(
             df,
@@ -84,7 +84,7 @@ class VisualizationAgent:
             color_discrete_map=cluster_color_map,
             symbol="Marker Symbol",
             size="Marker Size",
-            size_max=20,
+            size_max=15,
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
                 "Y": dim_labels.get("y_label", "PC2")
