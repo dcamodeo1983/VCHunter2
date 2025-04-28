@@ -158,36 +158,52 @@ if vc_csv:
                 st.warning("⚠️ No portfolio page links found. Using homepage instead.")
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
+#####Start####
+# 📋 Inside your for url in vc_urls: loop
 
-            st.info("Embedding profile...")
-            portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
-            st.info("Interpreting strategy...")
-            strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
-            print(f"🧠 Strategy summary for {url}: {strategy_summary[:200]}")
-            
-            tagger = StrategicTaggerAgent(api_key=openai_api_key)
-            vc_tags = tagger.generate_tags(strategy_summary)    
-            print(f"✅ Generated tags for {url}: {vc_tags}")
+st.info("Embedding profile...")
 
-            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
-            vc_profile = {
-                "name": url.split("//")[-1].replace("www.", ""),
-                "url": url,
-                "embedding": vc_embedding,
-                "portfolio_size": len(structured_portfolio),
-                "strategy_summary": strategy_summary,
-                "strategic_tags": vc_tags,
-                "category": None,
-                "motivational_signals": [],
-                "cluster_id": None,
-                "coordinates": [None, None]
-            }              
-            print(f"📝 Final VC profile for {url}: {vc_profile}")
-            cached_profiles = load_vc_profiles()
-            cached_profiles = [p for p in cached_profiles if p['url'] != url]
-            cached_profiles.append(vc_profile)
-            save_vc_profiles(cached_profiles)
+st.info("Interpreting strategy...")
+strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
+print(f"🧠 Strategy summary for {url}: {strategy_summary[:200]}")
+
+# ✅ Generate Strategic Tags AND Motivational Signals
+tagger = StrategicTaggerAgent(api_key=openai_api_key)
+vc_tag_data = tagger.generate_tags(strategy_summary)  # Expecting JSON with "tags" and "motivational_signals"
+vc_tags = vc_tag_data.get("tags", [])
+vc_motivations = vc_tag_data.get("motivational_signals", [])
+
+print(f"✅ Generated tags for {url}: {vc_tags}")
+print(f"✅ Generated motivational signals for {url}: {vc_motivations}")
+
+# ✅ Embed the full VC profile
+vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+
+# ✅ Build the complete VC profile dictionary
+vc_profile = {
+    "name": url.split("//")[-1].replace("www.", ""),
+    "url": url,
+    "embedding": vc_embedding,
+    "portfolio_size": len(structured_portfolio),
+    "strategy_summary": strategy_summary,
+    "strategic_tags": vc_tags,
+    "motivational_signals": vc_motivations,  # ✅ Now filled
+    "category": None,
+    "cluster_id": None,
+    "coordinates": [None, None]
+}
+
+print(f"📝 Final VC profile for {url}: {vc_profile}")
+
+# ✅ Save / update cached profiles
+cached_profiles = load_vc_profiles()
+cached_profiles = [p for p in cached_profiles if p['url'] != url]
+cached_profiles.append(vc_profile)
+save_vc_profiles(cached_profiles)
+
+#=====  END     ======#
 
 # === Clustering + Categorization ===
 st.divider()
