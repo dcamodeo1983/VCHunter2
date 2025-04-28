@@ -37,7 +37,7 @@ class VisualizationAgent:
                 return json.load(f)
         return {}
 
-    def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None):
+    def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None, top_match_names=None):
         profiles = self.load_profiles()
         embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
 
@@ -71,6 +71,10 @@ class VisualizationAgent:
         }
 
         df["Color"] = df["Cluster Name"].map(cluster_color_map)
+        top_match_names = top_match_names or []  # Default to empty list if None
+
+        df["Marker Symbol"] = df["VC Name"].apply(lambda name: "star" if name in top_match_names else "circle")
+        df["Marker Size"] = df["VC Name"].apply(lambda name: 12 if name in top_match_names else 8)
 
         fig = px.scatter(
             df,
@@ -78,6 +82,9 @@ class VisualizationAgent:
             y="Y",
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
+            symbol="Marker Symbol",
+            size="Marker Size",
+            size_max=20,
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
                 "Y": dim_labels.get("y_label", "PC2")
