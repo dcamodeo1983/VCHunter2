@@ -19,6 +19,8 @@ from agents.dimension_explainer_agent import DimensionExplainerAgent
 from agents.founder_survey_agent import FounderSurveyAgent
 from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
+from agents.portfolio_scraper_agent import PortfolioScraperAgent
+
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -134,7 +136,7 @@ st.divider()
 st.header("📥 Upload CSV of VC URLs")
 
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
-
+portfolio_scraper = PortfolioScraperAgent()
 if vc_csv:
     df = pd.read_csv(vc_csv)
     urls = df['url'].dropna().unique().tolist()
