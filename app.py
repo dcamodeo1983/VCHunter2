@@ -256,8 +256,12 @@ st.divider()
 st.subheader("📊 VC Landscape Map")
 
 viz_agent = VisualizationAgent(api_key=openai_api_key)
-
-fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d, founder_cluster_id=founder_cluster_id)
+top_vc_names = [match["name"].strip().lower() for match in top_matches]
+fig, labels = viz_agent.generate_cluster_map(
+    founder_embedding_2d=founder_2d,
+    founder_cluster_id=founder_cluster_id,
+    top_match_names=top_vc_names
+)
 if fig:
     st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
     st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
