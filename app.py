@@ -171,7 +171,10 @@ print(f"🧠 Strategy summary for {url}: {strategy_summary[:200]}")
 
 # ✅ Generate Strategic Tags AND Motivational Signals
 tagger = StrategicTaggerAgent(api_key=openai_api_key)
-vc_tag_data = tagger.generate_tags(strategy_summary)  # Expecting JSON with "tags" and "motivational_signals"
+vc_tag_data = tagger.generate_tags_and_signals(strategy_summary)
+vc_tags = vc_tag_data.get("tags", [])
+vc_motivations = vc_tag_data.get("motivational_signals", [])
+# Expecting JSON with "tags" and "motivational_signals"
 vc_tags = vc_tag_data.get("tags", [])
 vc_motivations = vc_tag_data.get("motivational_signals", [])
 
