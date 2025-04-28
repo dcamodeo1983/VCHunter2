@@ -59,7 +59,7 @@ class VisualizationAgent:
             "Cluster Name": [cluster_labels.get(str(p.get("cluster_id", -1)), {}).get("name", f"Cluster {p.get('cluster_id', -1)}") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
-            "Strategic Tags": [", ".join(p.get("strategic_tags", [])) if p.get("strategic_tags") else "No Strategic Focus Available" for p in profiles],
+            "Strategic Tags": [", ".join(p.get("strategic_tags", [])[:3]) if p.get("strategic_tags") else "No Strategic Focus Available" for p in profiles],
             "Motivational Signals": [", ".join(p.get("motivational_signals", [])[:3]) if p.get("motivational_signals") else "No Signals Available" for p in profiles],
         })
 
