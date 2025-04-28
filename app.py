@@ -144,51 +144,66 @@ if vc_csv:
     urls = df['url'].dropna().unique().tolist()
     st.success(f"✅ Loaded {len(urls)} VC URLs")
 ##Start
-st.info("Embedding profile...")
+for url in urls:
+    with st.expander(f"🔍 {url}"):
+        scraper = VCWebsiteScraperAgent()
+        enricher = PortfolioEnricherAgent()
+        interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
 
-# ✅ Build portfolio_text from existing structured_portfolio
-portfolio_text = "\n".join([
-    f"{entry['name']}: {entry['description']}"
-    for entry in structured_portfolio
-])
+        st.info("Scraping site text...")
+        vc_site_text = scraper.scrape_text(url)
 
-st.info("Interpreting strategy...")
-strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
-print(f"🧠 Strategy summary for {url}: {strategy_summary[:200]}")
+        st.info("Extracting portfolio entries...")
+        portfolio_links = scraper.find_portfolio_links(url)
+        if portfolio_links:
+            st.info(f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping...")
+            structured_portfolio = enricher.extract_portfolio_entries_from_pages(portfolio_links)
+        else:
+            st.warning("⚠️ No portfolio page links found. Using homepage instead.")
+            structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
 
-# ✅ Generate Strategic Tags and Motivational Signals
-tagger = StrategicTaggerAgent(api_key=openai_api_key)
-vc_tag_data = tagger.generate_tags_and_signals(strategy_summary)
-vc_tags = vc_tag_data.get("tags", [])
-vc_motivations = vc_tag_data.get("motivational_signals", [])
+        st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
-print(f"✅ Generated tags for {url}: {vc_tags}")
-print(f"✅ Generated motivational signals for {url}: {vc_motivations}")
+        st.info("Embedding profile...")
+        portfolio_text = "\n".join([
+            f"{entry['name']}: {entry['description']}"
+            for entry in structured_portfolio
+        ])
 
-# ✅ Embed the full VC profile
-vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+        st.info("Interpreting strategy...")
+        strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
+        print(f"🧠 Strategy summary for {url}: {strategy_summary[:200]}")
 
-# ✅ Build and save the full VC profile
-vc_profile = {
-    "name": url.split("//")[-1].replace("www.", ""),
-    "url": url,
-    "embedding": vc_embedding,
-    "portfolio_size": len(structured_portfolio),
-    "strategy_summary": strategy_summary,
-    "strategic_tags": vc_tags,
-    "motivational_signals": vc_motivations,
-    "category": None,
-    "cluster_id": None,
-    "coordinates": [None, None]
-}
+        tagger = StrategicTaggerAgent(api_key=openai_api_key)
+        vc_tag_data = tagger.generate_tags_and_signals(strategy_summary)
+        vc_tags = vc_tag_data.get("tags", [])
+        vc_motivations = vc_tag_data.get("motivational_signals", [])
 
-print(f"📝 Final VC profile for {url}: {vc_profile}")
+        print(f"✅ Generated tags for {url}: {vc_tags}")
+        print(f"✅ Generated motivational signals for {url}: {vc_motivations}")
 
-# ✅ Save / update cached profiles
-cached_profiles = load_vc_profiles()
-cached_profiles = [p for p in cached_profiles if p['url'] != url]  # Remove any old version
-cached_profiles.append(vc_profile)
-save_vc_profiles(cached_profiles)
+        vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+
+        vc_profile = {
+            "name": url.split("//")[-1].replace("www.", ""),
+            "url": url,
+            "embedding": vc_embedding,
+            "portfolio_size": len(structured_portfolio),
+            "strategy_summary": strategy_summary,
+            "strategic_tags": vc_tags,
+            "motivational_signals": vc_motivations,
+            "category": None,
+            "cluster_id": None,
+            "coordinates": [None, None]
+        }
+
+        print(f"📝 Final VC profile for {url}: {vc_profile}")
+
+        cached_profiles = load_vc_profiles()
+        cached_profiles = [p for p in cached_profiles if p['url'] != url]
+        cached_profiles.append(vc_profile)
+        save_vc_profiles(cached_profiles)
+
 
 
 #=====  END     ======#
