@@ -162,7 +162,7 @@ if vc_csv:
 # 📋 Inside your for url in vc_urls: loop
 
 st.info("Embedding profile...")
-
+structured_portfolio = portfolio_scraper.scrape_portfolio(url, vc_site_text)
 portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
 st.info("Interpreting strategy...")
