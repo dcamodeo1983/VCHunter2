@@ -1,5 +1,3 @@
-# VC Hunter Streamlit UI Upgrade (Narrative-Driven)
-
 import streamlit as st
 import os
 import pandas as pd
@@ -19,10 +17,8 @@ from agents.dimension_explainer_agent import DimensionExplainerAgent
 from agents.founder_survey_agent import FounderSurveyAgent
 from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
-from agents.portfolio_enricher_agent import PortfolioEnricherAgent
+
 portfolio_enricher = PortfolioEnricherAgent()
-
-
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
@@ -58,6 +54,7 @@ embedder = EmbedderAgent(api_key=openai_api_key)
 founder_2d = None
 founder_cluster_id = None
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
+
 if uploaded_file:
     reader = FounderDocReaderAgent()
     summarizer = LLMSummarizerAgent(api_key=openai_api_key)
@@ -138,12 +135,12 @@ st.divider()
 st.header("📥 Upload CSV of VC URLs")
 
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
-portfolio_enricher = PortfolioEnricherAgent()
+
 if vc_csv:
     df = pd.read_csv(vc_csv)
     urls = df['url'].dropna().unique().tolist()
     st.success(f"✅ Loaded {len(urls)} VC URLs")
-##Start
+
     for url in urls:
         with st.expander(f"🔍 {url}"):
             scraper = VCWebsiteScraperAgent()
@@ -182,9 +179,9 @@ if vc_csv:
             print(f"✅ Generated tags for {url}: {vc_tags}")
             print(f"✅ Generated motivational signals for {url}: {vc_motivations}")
 
-           vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
+            vc_embedding = embed_vc_profile(vc_site_text, portfolio_text, strategy_summary, embedder)
 
-           vc_profile = {
+            vc_profile = {
                 "name": url.split("//")[-1].replace("www.", ""),
                 "url": url,
                 "embedding": vc_embedding,
@@ -204,10 +201,6 @@ if vc_csv:
             cached_profiles.append(vc_profile)
             save_vc_profiles(cached_profiles)
 
-
-
-#=====  END     ======#
-
 # === Clustering + Categorization ===
 st.divider()
 st.subheader("🧭 VC Landscape Categorization")
@@ -223,16 +216,15 @@ if st.button("Run Clustering + Categorization"):
     categorized_profiles = categorize_agent.categorize_clusters()
     st.success("Categorization complete.")
 
-
     dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
     dim_agent.generate_axis_labels()
     st.info("Interpreting Strategic Clusters...")
+
     from agents.cluster_interpreter_agent import ClusterInterpreterAgent
     cluster_namer = ClusterInterpreterAgent(api_key=openai_api_key)
     cluster_labels = cluster_namer.interpret_clusters()
     st.success("Clusters interpreted successfully!")
-        ####
-        # === Print Strategic Archetypes ===
+
     if os.path.exists("outputs/cluster_labels.json"):
         with open("outputs/cluster_labels.json", "r") as f:
             cluster_labels = json.load(f)
@@ -243,14 +235,12 @@ if st.button("Run Clustering + Categorization"):
             st.markdown(f"{info.get('description', 'No description.')}")
             st.markdown("---")
 
-
-    ###
     if uploaded_file and isinstance(embedding, list):
-        founder_2d = cluster_agent.transform(embedding)  # Transform founder into PCA space
+        founder_2d = cluster_agent.transform(embedding)
 
         matcher = FounderMatcherAgent(embedding)
         top_matches = matcher.match(top_k=5)
-        
+
         if top_matches:
             st.subheader("🎯 Top VC Matches")
             for match in top_matches:
@@ -260,13 +250,12 @@ if st.button("Run Clustering + Categorization"):
                 st.markdown("---")
     st.balloons()
     st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
 # === Semantic Visualization with Axis Labels ===
 st.divider()
 st.subheader("📊 VC Landscape Map")
 
 viz_agent = VisualizationAgent(api_key=openai_api_key)
-
-
 
 fig, labels = viz_agent.generate_cluster_map(founder_embedding_2d=founder_2d, founder_cluster_id=founder_cluster_id)
 if fig:
