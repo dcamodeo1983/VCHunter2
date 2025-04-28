@@ -20,6 +20,8 @@ from agents.founder_survey_agent import FounderSurveyAgent
 from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
+portfolio_enricher = PortfolioEnricherAgent()
+
 
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
@@ -164,7 +166,7 @@ if vc_csv:
 # 📋 Inside your for url in vc_urls: loop
 
 st.info("Embedding profile...")
-structured_portfolio = portfolio_scraper.scrape_portfolio(url, vc_site_text)
+structured_portfolio = portfolio_enricher.enrich_portfolio(url, vc_site_text)
 portfolio_text = "\n".join([entry['name'] + ": " + entry['description'] for entry in structured_portfolio])
 
 st.info("Interpreting strategy...")
