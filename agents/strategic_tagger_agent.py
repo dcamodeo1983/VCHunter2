@@ -6,41 +6,40 @@ from openai import OpenAI
 
 class StrategicTaggerAgent:
     def __init__(self, api_key):
+        from openai import OpenAI
         self.client = OpenAI(api_key=api_key)
 
-    def generate_tags(self, strategy_summary):
-        if not strategy_summary:
-            return ["#Generalist"]
-
+    def generate_tags_and_signals(self, strategy_summary):
         prompt = f"""
-You are a venture capital research analyst.
+Analyze the following VC investment strategy and return two outputs:
+1. A short list of strategic focus tags (3-7 concise phrases).
+2. A short list of motivational signals (3-5 concise phrases that describe what excites this VC about startups).
 
-Given the following investment strategy description, return 1–3 short hashtags that capture the focus areas, investment style, or specialization.
-
-Each tag should:
-- Be short (1–3 words)
-- Use #hashtag style (e.g., #DeepTech, #ClimateInnovation, #ConsumerSaaS)
-- Avoid full sentences.
-
-Here is the strategy summary:
----
+Strategy Summary:
+\"\"\"
 {strategy_summary}
----
-Only output the hashtags, separated by commas. No extra text.
+\"\"\"
+
+Return the result in this strict JSON format:
+
+{{
+  "tags": ["..."],
+  "motivational_signals": ["..."]
+}}
 """
 
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        # Parse and return JSON safely
+        text_response = response.choices[0].message.content.strip()
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-                max_tokens=100
-            )
-            tags_text = response.choices[0].message.content.strip()
-            tags = [tag.strip() for tag in tags_text.split(",") if tag.strip()]
-            if not tags:
-                return ["#Generalist"]
-            return tags
+            parsed_response = json.loads(text_response)
         except Exception as e:
-            print(f"❌ Error generating tags: {e}")
-            return ["#Generalist"]
+            print(f"Failed to parse LLM output: {e}")
+            parsed_response = {"tags": [], "motivational_signals": []}
+
+        return parsed_response
+
