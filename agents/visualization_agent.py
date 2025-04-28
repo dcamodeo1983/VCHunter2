@@ -71,6 +71,8 @@ class VisualizationAgent:
         }
 
         df["Color"] = df["Cluster Name"].map(cluster_color_map)
+        
+        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
         top_match_names = top_match_names or []  # Default to empty list if None
 
         df["Marker Symbol"] = df["VC Name"].apply(lambda name: "star" if name in top_match_names else "circle")
