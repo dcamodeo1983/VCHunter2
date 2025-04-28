@@ -72,11 +72,13 @@ class VisualizationAgent:
 
         df["Color"] = df["Cluster Name"].map(cluster_color_map)
         
-        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
-        top_match_names = top_match_names or []  # Default to empty list if None
+        top_match_names = top_match_names or []
 
-        df["Marker Symbol"] = df["VC Name"].apply(lambda name: "star" if name in top_match_names else "circle")
-        df["Marker Size"] = df["VC Name"].apply(lambda name: 10 if name in top_match_names else 5)
+        top_vc_names = [name.strip().lower() for name in top_match_names]  # Normalize list coming in
+        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()   # Normalize your DataFrame VC names
+
+        df["Marker Symbol"] = df["Normalized VC Name"].apply(lambda name: "star" if name in top_vc_names else "circle")
+        df["Marker Size"] = df["Normalized VC Name"].apply(lambda name: 10 if name in top_vc_names else 5)
 
         fig = px.scatter(
             df,
