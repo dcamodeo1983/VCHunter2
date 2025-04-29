@@ -87,6 +87,7 @@ class VisualizationAgent:
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
             symbol="Marker Symbol",
+            symbol_sequence=["circle", "star"],  # 🚨 Critical Line to fix plotting
             size="Marker Size",
             size_max=15,
             labels={
@@ -97,6 +98,7 @@ class VisualizationAgent:
             width=950,
             height=650
         )
+
 
         fig.update_traces(
             customdata=df[["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"]].values,
