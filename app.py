@@ -252,4 +252,4 @@ if st.button("Run Clustering + Categorization"):
             cluster_labels = json.load(f)
 
         st.subheader("🧠 Strategic Archetypes:")
-        for cluster_id, info in cluster_labels.items
+        for cluster_id, info in cluster_labels.items():
