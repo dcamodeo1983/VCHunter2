@@ -47,7 +47,7 @@ class VisualizationAgent:
         top_vc_names = [name.strip().lower() for name in top_match_names]
         df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
 
-        df["Marker Symbol"] = df["Normalized VC Name"].apply(
+        df["Symbol Name"] = df["Normalized VC Name"].apply(
             lambda name: "star" if name in top_vc_names else "circle"
         )
         df["Marker Size"] = df["Normalized VC Name"].apply(
@@ -60,7 +60,7 @@ class VisualizationAgent:
             y="Y",
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
-            symbol="Marker Symbol",
+            symbol="Symbol Name",
             symbol_sequence=["circle", "star"],
             size="Marker Size",
             size_max=15,
