@@ -78,14 +78,18 @@ class VisualizationAgent:
         }
 
         df["Color"] = df["Cluster Name"].map(cluster_color_map)
-        
         top_match_names = top_match_names or []
+        top_vc_names = [name.strip().lower() for name in top_match_names]
+        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
 
-        top_vc_names = [name.strip().lower() for name in top_match_names]  # Normalize list coming in
-        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()   # Normalize your DataFrame VC names
+        df["Marker Symbol"] = df["Normalized VC Name"].apply(
+            lambda name: "star" if name in top_vc_names else "circle"
+        )
 
-        df["Marker Symbol"] = df["Normalized VC Name"].apply(lambda name: "star" if name in top_vc_names else "circle")
-        df["Marker Size"] = df["Normalized VC Name"].apply(lambda name: 10 if name in top_vc_names else 5)
+        df["Marker Size"] = df["Normalized VC Name"].apply(
+            lambda name: 10 if name in top_vc_names else 6
+        )
+
 
         fig = px.scatter(
             df,
@@ -94,9 +98,10 @@ class VisualizationAgent:
             color="Cluster Name",
             color_discrete_map=cluster_color_map,
             symbol="Marker Symbol",
+            symbol_sequence=["circle", "star"],
             symbol_sequence=["circle", "star"],  # 🚨 Critical Line to fix plotting
             size="Marker Size",
-            size_max=15,
+            size_max=10,
             labels={
                 "X": dim_labels.get("x_label", "PC1"),
                 "Y": dim_labels.get("y_label", "PC2")
