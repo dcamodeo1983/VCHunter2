@@ -31,9 +31,8 @@ class VisualizationAgent:
             "Cluster Name": [cluster_labels.get(str(p.get("cluster_id", -1)), {}).get("name", f"Cluster {p.get('cluster_id', -1)}") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
-            "Strategy Summary": [p.get("strategy_summary", "") for p in profiles],
-            "Motivational Signals": [", ".join(p.get("motivational_signals", [])) for p in profiles],
-            "Strategic Tags": [", ".join(p.get("strategic_tags", [])) for p in profiles],
+            "Focus": [", ".join(p.get("strategic_tags", []))[:120] + "..." if len(", ".join(p.get("strategic_tags", []))) > 120 else ", ".join(p.get("strategic_tags", [])) for p in profiles],
+            "Signals": [", ".join(p.get("motivational_signals", []))[:120] + "..." if len(", ".join(p.get("motivational_signals", []))) > 120 else ", ".join(p.get("motivational_signals", [])) for p in profiles],
         })
 
         unique_clusters = sorted(df["Cluster Name"].unique())
@@ -65,7 +64,7 @@ class VisualizationAgent:
             size="Marker Size",
             size_max=15,
             hover_name="VC Name",
-            custom_data=["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"],
+            custom_data=["VC Name", "Cluster Name", "Focus", "Signals"],
             labels={
                 "X": f"{dimension_labels.get('x_label', 'PC1')} ({dimension_labels.get('x_variance', 0)*100:.1f}%)",
                 "Y": f"{dimension_labels.get('y_label', 'PC2')} ({dimension_labels.get('y_variance', 0)*100:.1f}%)"
