@@ -240,7 +240,7 @@ if st.button("Run Clustering + Categorization"):
 
         matcher = FounderMatcherAgent(embedding)
         top_matches = matcher.match(top_k=5)
-
+        top_vc_names = [match["name"].strip().lower() for match in top_matches]
         if top_matches:
             st.subheader("🎯 Top VC Matches")
             for match in top_matches:
