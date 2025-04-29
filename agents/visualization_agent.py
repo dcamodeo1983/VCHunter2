@@ -38,7 +38,14 @@ class VisualizationAgent:
         return {}
 
     def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None, top_match_names=None):
+        
         profiles = self.load_profiles()
+        unique_profiles = {}
+        for p in profiles:
+            key = p.get("name", "").strip().lower()
+            if key and key not in unique_profiles:
+                unique_profiles[key] = p
+        profiles = list(unique_profiles.values())
         embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
 
         if not embeddings:
