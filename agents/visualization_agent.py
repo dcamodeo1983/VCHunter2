@@ -69,6 +69,24 @@ class VisualizationAgent:
             "Strategic Tags": [", ".join(p.get("strategic_tags", [])[:3]) if p.get("strategic_tags") else "No Strategic Focus Available" for p in profiles],
             "Motivational Signals": [", ".join(p.get("motivational_signals", [])[:3]) if p.get("motivational_signals") else "No Signals Available" for p in profiles],
         })
+###
+if founder_embedding_2d is not None:
+    founder_x, founder_y = founder_embedding_2d
+    fig.add_scatter(
+        x=[founder_x],
+        y=[founder_y],
+        mode="markers",
+        marker=dict(
+            symbol="star",
+            size=22,
+            color="gold",
+            line=dict(color="black", width=2)
+        ),
+        name="Founder Idea"
+    )
+
+###
+        
 
         dim_labels = self.load_dimension_labels()
         unique_clusters = sorted(df["Cluster Name"].unique())
