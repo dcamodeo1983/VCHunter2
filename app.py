@@ -135,6 +135,7 @@ if uploaded_file:
                     st.markdown(f"• Strategy: {match['rationale']}")
                     st.markdown("---")
 
+                viz_agent = VisualizationAgent(api_key=openai_api_key)
                 fig, labels = viz_agent.generate_cluster_map(
                     founder_embedding_2d=founder_2d,
                     founder_cluster_id=founder_cluster_id,
