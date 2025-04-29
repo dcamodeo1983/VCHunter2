@@ -141,10 +141,15 @@ if uploaded_file:
 
                 viz_agent = VisualizationAgent(api_key=openai_api_key)
                 fig, labels = viz_agent.generate_cluster_map(
+                    profiles=vc_profiles,
+                    coords_2d=coords_2d,
+                    pca=pca,
+                    dimension_labels=dimension_labels,
                     founder_embedding_2d=founder_2d,
                     founder_cluster_id=founder_cluster_id,
                     top_match_names=top_vc_names
                 )
+
 
                 if fig:
                     st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
