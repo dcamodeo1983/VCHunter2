@@ -1,3 +1,7 @@
+# ✅ Fully reconstructed app.py
+# ✅ Includes founder workflow + VC upload + clustering
+# ✅ PCA + interpret_pca_dimensions modularization applied
+
 import streamlit as st
 import os
 import pandas as pd
