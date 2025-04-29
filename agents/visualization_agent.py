@@ -99,7 +99,6 @@ class VisualizationAgent:
             color_discrete_map=cluster_color_map,
             symbol="Marker Symbol",
             symbol_sequence=["circle", "star"],
-            symbol_sequence=["circle", "star"],  # 🚨 Critical Line to fix plotting
             size="Marker Size",
             size_max=10,
             labels={
