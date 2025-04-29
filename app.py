@@ -253,3 +253,40 @@ if st.button("Run Clustering + Categorization"):
 
         st.subheader("🧠 Strategic Archetypes:")
         for cluster_id, info in cluster_labels.items():
+            st.markdown(f"**{info.get('name', f'Cluster {cluster_id}')}**")
+            st.markdown(f"{info.get('description', 'No description.')}")
+            st.markdown("---")
+
+    if uploaded_file and isinstance(embedding, list):
+        founder_2d = cluster_agent.transform(embedding)
+
+        matcher = FounderMatcherAgent(embedding)
+        top_matches = matcher.match(top_k=5)
+        top_vc_names = [match["name"].strip().lower() for match in top_matches]
+        if top_matches:
+            st.subheader("🎯 Top VC Matches")
+            for match in top_matches:
+                st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+                st.markdown(f"• Strategy: {match['rationale']}")
+                st.markdown("---")
+    st.balloons()
+    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
+
+# === Semantic Visualization with Axis Labels ===
+st.divider()
+st.subheader("📊 VC Landscape Map")
+
+viz_agent = VisualizationAgent(api_key=openai_api_key)
+top_vc_names = [match["name"].strip().lower() for match in top_matches]
+fig, labels = viz_agent.generate_cluster_map(
+    founder_embedding_2d=founder_2d,
+    founder_cluster_id=founder_cluster_id,
+    top_match_names=top_vc_names
+)
+if fig:
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No VC profiles found with valid cluster coordinates.")
