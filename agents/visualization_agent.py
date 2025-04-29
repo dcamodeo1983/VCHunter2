@@ -3,11 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import json
-from sklearn.decomposition import PCA
-from .utils import interpret_pca_dimensions  # <-- make sure this exists and uses OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
-DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
 
 class VisualizationAgent:
@@ -15,61 +12,14 @@ class VisualizationAgent:
         self.api_key = api_key
         self.color_palette = px.colors.qualitative.Safe
 
-    def load_profiles(self):
-        if os.path.exists(VC_PROFILE_PATH):
-            with open(VC_PROFILE_PATH, "r") as f:
-                return json.load(f)
-        return []
-
-    def load_dimension_labels(self):
-        if os.path.exists(DIMENSION_LABELS_PATH):
-            with open(DIMENSION_LABELS_PATH, "r") as f:
-                return json.load(f)
-        return {
-            "x_label": "PC1",
-            "y_label": "PC2",
-            "x_description": "",
-            "y_description": ""
-        }
-
     def load_cluster_labels(self):
         if os.path.exists(CLUSTER_LABELS_PATH):
             with open(CLUSTER_LABELS_PATH, "r") as f:
                 return json.load(f)
         return {}
 
-    def generate_cluster_map(self, founder_embedding_2d=None, founder_cluster_id=None, top_match_names=None):
-        profiles = self.load_profiles()
-        unique_profiles = {}
-        for p in profiles:
-            key = p.get("name", "").strip().lower()
-            if key and key not in unique_profiles:
-                unique_profiles[key] = p
-        profiles = list(unique_profiles.values())
-
-        embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
-        if not embeddings:
-            return None, {}
-
-        pca = PCA(n_components=2, random_state=42)
-        coords = pca.fit_transform(embeddings)
-
-        # Regenerate dimension labels using LLM
-        try:
-            components = pca.components_.tolist()
-            explained_var = pca.explained_variance_ratio_.tolist()
-            dim_labels = interpret_pca_dimensions(components, explained_var)
-            dim_labels["x_variance"] = explained_var[0]
-            dim_labels["y_variance"] = explained_var[1]
-            with open(DIMENSION_LABELS_PATH, "w") as f:
-                json.dump(dim_labels, f, indent=2)
-        except Exception as e:
-            print(f"[WARN] PCA dimension interpretation failed: {e}")
-            dim_labels = self.load_dimension_labels()
-            dim_labels["x_variance"] = pca.explained_variance_ratio_[0]
-            dim_labels["y_variance"] = pca.explained_variance_ratio_[1]
-
-        for profile, (x, y) in zip(profiles, coords):
+    def generate_cluster_map(self, profiles, coords_2d, pca, dimension_labels, founder_embedding_2d=None, founder_cluster_id=None, top_match_names=None):
+        for profile, (x, y) in zip(profiles, coords_2d):
             profile["pca_x"] = float(x)
             profile["pca_y"] = float(y)
 
@@ -117,8 +67,8 @@ class VisualizationAgent:
             hover_name="VC Name",
             custom_data=["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"],
             labels={
-                "X": f"{dim_labels.get('x_label', 'PC1')} ({dim_labels.get('x_variance', 0)*100:.1f}%)",
-                "Y": f"{dim_labels.get('y_label', 'PC2')} ({dim_labels.get('y_variance', 0)*100:.1f}%)"
+                "X": f"{dimension_labels.get('x_label', 'PC1')} ({dimension_labels.get('x_variance', 0)*100:.1f}%)",
+                "Y": f"{dimension_labels.get('y_label', 'PC2')} ({dimension_labels.get('y_variance', 0)*100:.1f}%)"
             },
             title="\U0001F9ED VC Landscape by Strategic Identity",
             width=950,
@@ -149,4 +99,4 @@ class VisualizationAgent:
                 name="Founder Idea"
             )
 
-        return fig, dim_labels
+        return fig, dimension_labels
