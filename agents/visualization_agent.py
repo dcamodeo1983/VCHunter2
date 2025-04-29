@@ -4,6 +4,7 @@ import numpy as np
 import os
 import json
 from sklearn.decomposition import PCA
+from .utils import interpret_pca_dimensions  # <-- make sure this exists and uses OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
@@ -53,6 +54,21 @@ class VisualizationAgent:
         pca = PCA(n_components=2, random_state=42)
         coords = pca.fit_transform(embeddings)
 
+        # Regenerate dimension labels using LLM
+        try:
+            components = pca.components_.tolist()
+            explained_var = pca.explained_variance_ratio_.tolist()
+            dim_labels = interpret_pca_dimensions(components, explained_var)
+            dim_labels["x_variance"] = explained_var[0]
+            dim_labels["y_variance"] = explained_var[1]
+            with open(DIMENSION_LABELS_PATH, "w") as f:
+                json.dump(dim_labels, f, indent=2)
+        except Exception as e:
+            print(f"[WARN] PCA dimension interpretation failed: {e}")
+            dim_labels = self.load_dimension_labels()
+            dim_labels["x_variance"] = pca.explained_variance_ratio_[0]
+            dim_labels["y_variance"] = pca.explained_variance_ratio_[1]
+
         for profile, (x, y) in zip(profiles, coords):
             profile["pca_x"] = float(x)
             profile["pca_y"] = float(y)
@@ -70,7 +86,6 @@ class VisualizationAgent:
             "Strategic Tags": [", ".join(p.get("strategic_tags", [])) for p in profiles],
         })
 
-        dim_labels = self.load_dimension_labels()
         unique_clusters = sorted(df["Cluster Name"].unique())
         cluster_color_map = {
             cluster_name: self.color_palette[i % len(self.color_palette)]
@@ -102,10 +117,10 @@ class VisualizationAgent:
             hover_name="VC Name",
             custom_data=["VC Name", "Cluster Name", "Strategic Tags", "Motivational Signals"],
             labels={
-                "X": dim_labels.get("x_label", "PC1"),
-                "Y": dim_labels.get("y_label", "PC2")
+                "X": f"{dim_labels.get('x_label', 'PC1')} ({dim_labels.get('x_variance', 0)*100:.1f}%)",
+                "Y": f"{dim_labels.get('y_label', 'PC2')} ({dim_labels.get('y_variance', 0)*100:.1f}%)"
             },
-            title="🧭 VC Landscape by Strategic Identity",
+            title="\U0001F9ED VC Landscape by Strategic Identity",
             width=950,
             height=650
         )
@@ -133,8 +148,5 @@ class VisualizationAgent:
                 ),
                 name="Founder Idea"
             )
-
-        dim_labels["x_variance"] = pca.explained_variance_ratio_[0]
-        dim_labels["y_variance"] = pca.explained_variance_ratio_[1]
 
         return fig, dim_labels
