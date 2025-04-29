@@ -1,88 +1,98 @@
+import json
+import os
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import normalize
 from openai import OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
 
-class ClusterInterpreterAgent:
+class CategorizerAgent:
     def __init__(self, api_key):
         self.client = OpenAI(api_key=api_key)
 
     def load_profiles(self):
-        import json, os
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
         return []
 
-    def save_cluster_labels(self, cluster_labels):
-        import json
-        with open(CLUSTER_LABELS_PATH, "w") as f:
-            json.dump(cluster_labels, f, indent=2)
+    def save_profiles(self, profiles):
+        with open(VC_PROFILE_PATH, "w") as f:
+            json.dump(profiles, f, indent=2)
 
-    def interpret_clusters(self):
+    def assign_kmeans_clusters(self, n_clusters=4):
         profiles = self.load_profiles()
+        vectors = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
+        if not vectors:
+            return []
 
-        # Group strategy summaries by cluster
-        cluster_groups = {}
-        for p in profiles:
-            cid = p.get("cluster_id", -1)
-            if cid not in cluster_groups:
-                cluster_groups[cid] = []
-            cluster_groups[cid].append(p.get("strategy_summary", ""))
+        X = normalize(np.array(vectors))
+        model = KMeans(n_clusters=n_clusters, random_state=42, n_init="auto")
+        cluster_ids = model.fit_predict(X)
 
-        cluster_labels = {}
+        cluster_label_map = {}
+        for i, profile in enumerate(profiles):
+            profile["cluster_id"] = int(cluster_ids[i])
+            cluster_label_map[str(cluster_ids[i])] = {"name": f"Cluster {cluster_ids[i]}"}
 
-        for cluster_id, summaries in cluster_groups.items():
-            combined_summary = "\n".join(summaries)
+        with open(VC_PROFILE_PATH, "w") as f:
+            json.dump(profiles, f, indent=2)
+        with open(CLUSTER_LABELS_PATH, "w") as f:
+            json.dump(cluster_label_map, f, indent=2)
+
+        return profiles
+
+    def categorize_clusters(self):
+        profiles = self.load_profiles()
+        cluster_ids = sorted(set(p["cluster_id"] for p in profiles if p.get("cluster_id") is not None))
+
+        for cluster_id in cluster_ids:
+            cluster_profiles = [p for p in profiles if p["cluster_id"] == cluster_id]
+
+            summarized_vcs = "\n".join([
+                f"- {p.get('name', 'Unnamed VC')}: {p.get('strategy_summary', 'No summary')[:250]}"
+                for p in cluster_profiles
+            ])
 
             prompt = f"""
-You are analyzing a group of venture capital firms based on their investment strategies.
+You are a senior venture capital partner reviewing a group of VC firms that have been clustered together based on their investment behavior and strategy.
 
-Given the following VC strategic summaries, propose:
-- A short, intuitive name for this cluster (e.g., 'Frontier Deep Tech Investors')
-- A 1-2 sentence description summarizing what unites these VCs.
+Your task is to:
+1. Interpret what this group of VC firms has in common.
+2. Assign a short, founder-friendly name to this cluster.
+3. Describe the shared investment style, thesis, or cultural mindset of the group.
+4. Suggest what types of startups or founders are a natural fit for this cluster.
 
-Here are the VC strategic summaries:
-{combined_summary}
+Your response will be shown to startup founders exploring the VC landscape. Help them understand which types of investors they’re looking at.
 
-Respond with this format:
+Input:
+Here is a list of VC firms in this cluster, along with a short summary of each firm’s investment strategy:
 
-Cluster Name: <name>
-Cluster Description: <description>
+{summarized_vcs}
+
+Format your answer like this:
+Category: <short, intuitive label>
+Rationale: <1–2 sentences explaining the common theme>
+Suggested Fit: <1 sentence on what kind of startups or founders this group is right for>
 """
 
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    max_tokens=400
+                    temperature=0.5,
+                    max_tokens=500
                 )
-                content = response.choices[0].message.content.strip()
+                result = response.choices[0].message.content.strip()
 
-                # Parse the LLM response
-                lines = content.splitlines()
-                name_line = next((line for line in lines if line.lower().startswith("cluster name")), None)
-                desc_line = next((line for line in lines if line.lower().startswith("cluster description")), None)
-
-                if name_line and desc_line:
-                    cluster_labels[str(cluster_id)] = {
-                        "name": name_line.replace("Cluster Name:", "").strip(),
-                        "description": desc_line.replace("Cluster Description:", "").strip()
-                    }
-                else:
-                    cluster_labels[str(cluster_id)] = {
-                        "name": f"Cluster {cluster_id}",
-                        "description": "No description generated."
-                    }
+                for profile in cluster_profiles:
+                    profile["category"] = result
 
             except Exception as e:
-                print(f"❌ Error interpreting cluster {cluster_id}: {e}")
-                cluster_labels[str(cluster_id)] = {
-                    "name": f"Cluster {cluster_id}",
-                    "description": "Error during interpretation."
-                }
+                for profile in cluster_profiles:
+                    profile["category"] = f"[Error during categorization: {e}]"
 
-        self.save_cluster_labels(cluster_labels)
-        return cluster_labels
-
+        self.save_profiles(profiles)
+        return profiles
