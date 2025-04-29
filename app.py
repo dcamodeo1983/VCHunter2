@@ -111,50 +111,46 @@ if uploaded_file:
 
         st.info("🔗 Creating embedding...")
         embedding = embedder.embed_text(combined_input)
-       if isinstance(embedding, list):
-           st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
 
-           matcher = FounderMatcherAgent(embedding)
-           top_matches = matcher.match(top_k=5)
+        if isinstance(embedding, list):
+            st.success(f"✅ Embedding created. Vector length: {len(embedding)}")
 
-           if top_matches:
-        # ✅ Normalize top VC names for visualization
-               top_vc_names = [match["name"].strip().lower() for match in top_matches]
+            matcher = FounderMatcherAgent(embedding)
+            top_matches = matcher.match(top_k=5)
 
-        # ✅ Use top match to estimate founder's cluster
-               top_match_url = top_matches[0]["url"]
-               top_cluster = next(
-                   (p.get("cluster_id") for p in load_vc_profiles() if p["url"] == top_match_url),
-                   None
-               )
-               founder_cluster_id = top_cluster
+            if top_matches:
+                top_vc_names = [match["name"].strip().lower() for match in top_matches]
 
-        # ✅ Display matches
-               st.subheader("🎯 Top VC Matches")
-               for match in top_matches:
-                   st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                   st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
-                   st.markdown(f"• Strategy: {match['rationale']}")
-                   st.markdown("---")
+                top_match_url = top_matches[0]["url"]
+                top_cluster = next(
+                    (p.get("cluster_id") for p in load_vc_profiles() if p["url"] == top_match_url),
+                    None
+                )
+                founder_cluster_id = top_cluster
 
-        # ✅ Plot VC landscape with stars for top matches
-               fig, labels = viz_agent.generate_cluster_map(
-                   founder_embedding_2d=founder_2d,
-                   founder_cluster_id=founder_cluster_id,
-                   top_match_names=top_vc_names
-               )
+                st.subheader("🎯 Top VC Matches")
+                for match in top_matches:
+                    st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                    st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+                    st.markdown(f"• Strategy: {match['rationale']}")
+                    st.markdown("---")
 
-               if fig:
-                   st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
-                   st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
-                   st.plotly_chart(fig, use_container_width=True)
-               else:
-                   st.warning("No VC profiles found with valid cluster coordinates.")
+                fig, labels = viz_agent.generate_cluster_map(
+                    founder_embedding_2d=founder_2d,
+                    founder_cluster_id=founder_cluster_id,
+                    top_match_names=top_vc_names
+                )
+
+                if fig:
+                    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+                    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("No VC profiles found with valid cluster coordinates.")
+            else:
+                st.warning("⚠️ No top VC matches were found.")
         else:
-            st.warning("⚠️ No top VC matches were found.")
-else:
-    st.error("❌ No valid embedding returned.")
-
+            st.error("❌ No valid embedding returned.")
 
 # === VC URL Upload ===
 st.divider()
@@ -256,41 +252,4 @@ if st.button("Run Clustering + Categorization"):
             cluster_labels = json.load(f)
 
         st.subheader("🧠 Strategic Archetypes:")
-        for cluster_id, info in cluster_labels.items():
-            st.markdown(f"**{info.get('name', f'Cluster {cluster_id}')}**")
-            st.markdown(f"{info.get('description', 'No description.')}")
-            st.markdown("---")
-
-    if uploaded_file and isinstance(embedding, list):
-        founder_2d = cluster_agent.transform(embedding)
-
-        matcher = FounderMatcherAgent(embedding)
-        top_matches = matcher.match(top_k=5)
-        top_vc_names = [match["name"].strip().lower() for match in top_matches]
-        if top_matches:
-            st.subheader("🎯 Top VC Matches")
-            for match in top_matches:
-                st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
-                st.markdown(f"• Strategy: {match['rationale']}")
-                st.markdown("---")
-    st.balloons()
-    st.success(f"🗂 Updated {len(categorized_profiles)} VC profiles with clusters and categories.")
-
-# === Semantic Visualization with Axis Labels ===
-st.divider()
-st.subheader("📊 VC Landscape Map")
-
-viz_agent = VisualizationAgent(api_key=openai_api_key)
-top_vc_names = [match["name"].strip().lower() for match in top_matches]
-fig, labels = viz_agent.generate_cluster_map(
-    founder_embedding_2d=founder_2d,
-    founder_cluster_id=founder_cluster_id,
-    top_match_names=top_vc_names
-)
-if fig:
-    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
-    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No VC profiles found with valid cluster coordinates.")
+        for cluster_id, info in cluster_labels.items
