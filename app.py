@@ -158,10 +158,10 @@ if uploaded_file:
         st.write("📊 coords_2d =", coords_2d)
         st.write("📈 founder_2d =", founder_2d)
 
-                dimension_labels = interpret_pca_dimensions(
-                    components=pca.components_.tolist(),
-                    explained_var=pca.explained_variance_ratio_.tolist()
-                )
+            dimension_labels = interpret_pca_dimensions(
+                components=pca.components_.tolist(),
+                explained_var=pca.explained_variance_ratio_.tolist()
+            )
 
 
                 st.subheader("🎯 Top VC Matches")
