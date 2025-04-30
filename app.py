@@ -33,8 +33,8 @@ def load_vc_profiles():
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
-        except json.JSONDecodeError:
-        return []
+    except json.JSONDecodeError:
+    return []
     return []
 
 def save_vc_profiles(profiles):
@@ -153,7 +153,6 @@ if uploaded_file:
                 pca = PCA(n_components=2, random_state=42)
                 vc_profiles = load_vc_profiles()
                 vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
-                pca = PCA(n_components=2, random_state=42)
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
 
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
