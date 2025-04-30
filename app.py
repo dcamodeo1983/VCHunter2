@@ -34,7 +34,7 @@ def load_vc_profiles():
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
     except json.JSONDecodeError:
-    return []
+        return []
     return []
 
 def save_vc_profiles(profiles):
