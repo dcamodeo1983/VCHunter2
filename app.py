@@ -135,6 +135,10 @@ if uploaded_file:
                 founder_cluster_id = top_cluster
 
                 vc_profiles = load_vc_profiles()
+                st.write("📦 vc_profiles =", vc_profiles)
+                st.write("📊 coords_2d =", coords_2d)
+                st.write("📈 founder_2d =", founder_2d)
+
                 vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
 
                 pca = PCA(n_components=2, random_state=42)
