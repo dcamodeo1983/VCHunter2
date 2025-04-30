@@ -135,9 +135,18 @@ if uploaded_file:
                 founder_cluster_id = top_cluster
 
                 vc_profiles = load_vc_profiles()
-                st.write("📦 vc_profiles =", vc_profiles)
-                st.write("📊 coords_2d =", coords_2d)
-                st.write("📈 founder_2d =", founder_2d)
+        try:
+            st.write("📦 vc_profiles =", vc_profiles)
+        except NameError:
+            st.warning("⚠️ vc_profiles is not defined yet.")
+        try:
+            st.write("📊 coords_2d =", coords_2d)
+        except NameError:
+            st.warning("⚠️ coords_2d is not defined yet.")
+        try:
+            st.write("📈 founder_2d =", founder_2d)
+        except NameError:
+            st.warning("⚠️ founder_2d is not defined yet.")
 
                 vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
 
@@ -149,14 +158,14 @@ if uploaded_file:
 
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
                 if coords_2d is not None and len(coords_2d) > 0:
-                    st.write("📊 coords_2d =", coords_2d)
+        try:
+            st.write("📊 coords_2d =", coords_2d)
+        except NameError:
+            st.warning("⚠️ coords_2d is not defined yet.")
                 else:
                     st.warning("⚠️ coords_2d is empty or PCA failed.")
 
                 founder_2d = pca.transform([embedding])[0]
-                st.write("📦 vc_profiles =", vc_profiles)
-                st.write("📊 coords_2d =", coords_2d)
-                st.write("📈 founder_2d =", founder_2d)
 
                 dimension_labels = interpret_pca_dimensions(
                     components=pca.components_.tolist(),
