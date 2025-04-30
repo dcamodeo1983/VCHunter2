@@ -154,6 +154,9 @@ if uploaded_file:
                     st.warning("⚠️ coords_2d is empty or PCA failed.")
 
                 founder_2d = pca.transform([embedding])[0]
+        st.write("📦 vc_profiles =", vc_profiles)
+        st.write("📊 coords_2d =", coords_2d)
+        st.write("📈 founder_2d =", founder_2d)
 
                 dimension_labels = interpret_pca_dimensions(
                     components=pca.components_.tolist(),
