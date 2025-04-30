@@ -140,6 +140,7 @@ if uploaded_file:
                     st.markdown("---")
 
                 viz_agent = VisualizationAgent(api_key=openai_api_key)
+                vc_profiles = load_vc_profiles()
                 fig, labels = viz_agent.generate_cluster_map(
                     profiles=vc_profiles,
                     coords_2d=coords_2d,
