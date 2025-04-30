@@ -1,8 +1,11 @@
-from openai import OpenAI
+
 import json
 import os
+from openai import OpenAI
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
+CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
+
 
 class CategorizerAgent:
     def __init__(self, api_key):
@@ -24,49 +27,55 @@ class CategorizerAgent:
 
         for cluster_id in cluster_ids:
             cluster_profiles = [p for p in profiles if p["cluster_id"] == cluster_id]
-
-            summarized_vcs = "\n".join([
-                f"- {p.get('name', 'Unnamed VC')}: {p.get('strategy_summary', 'No summary')[:250]}"
-                for p in cluster_profiles
-            ])
+            summarized_vcs = "\n".join(
+                [f"- {p.get('name', 'Unnamed VC')}: {p.get('strategy_summary', '')[:250]}" for p in cluster_profiles]
+            )
 
             prompt = f"""
 You are a senior venture capital partner reviewing a group of VC firms that have been clustered together based on their investment behavior and strategy.
 
 Your task is to:
-1. Interpret what this group of VC firms has in common.
-2. Assign a short, founder-friendly name to this cluster.
-3. Describe the shared investment style, thesis, or cultural mindset of the group.
-4. Suggest what types of startups or founders are a natural fit for this cluster.
-
-Your response will be shown to startup founders exploring the VC landscape. Help them understand which types of investors they’re looking at.
+1. Assign a short, founder-friendly name to this cluster.
+2. Describe the shared investment style, thesis, or cultural mindset of the group.
+3. Suggest what types of startups or founders are a natural fit for this cluster.
 
 Input:
-Here is a list of VC firms in this cluster, along with a short summary of each firm’s investment strategy:
-
 {summarized_vcs}
 
-Format your answer like this:
-Category: <short, intuitive label>
-Rationale: <1–2 sentences explaining the common theme>
-Suggested Fit: <1 sentence on what kind of startups or founders this group is right for>
+Format:
+Category: <short name>
+Rationale: <description>
+Suggested Fit: <fit>
 """
 
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5,
-                    max_tokens=500
+                    max_tokens=500,
                 )
                 result = response.choices[0].message.content.strip()
 
+                category = ""
+                rationale = ""
+                fit = ""
+                for line in result.splitlines():
+                    if line.startswith("Category:"):
+                        category = line.split("Category:")[1].strip()
+                    elif line.startswith("Rationale:"):
+                        rationale = line.split("Rationale:")[1].strip()
+                    elif line.startswith("Suggested Fit:"):
+                        fit = line.split("Suggested Fit:")[1].strip()
+
                 for profile in cluster_profiles:
-                    profile["category"] = result
+                    profile["category"] = category
+                    profile["category_rationale"] = rationale
+                    profile["category_fit"] = fit
 
             except Exception as e:
                 for profile in cluster_profiles:
-                    profile["category"] = f"[Error during categorization: {e}]"
+                    profile["category"] = f"[Error: {e}]"
 
         self.save_profiles(profiles)
         return profiles
