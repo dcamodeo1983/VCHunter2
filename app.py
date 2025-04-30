@@ -132,6 +132,19 @@ if uploaded_file:
                 )
                 founder_cluster_id = top_cluster
 
+                vc_profiles = load_vc_profiles()
+                vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
+
+                pca = PCA(n_components=2, random_state=42)
+                coords_2d = pca.fit_transform(np.array(vc_embeddings))
+                founder_2d = pca.transform([embedding])[0]
+
+                dimension_labels = interpret_pca_dimensions(
+                    components=pca.components_.tolist(),
+                    explained_var=pca.explained_variance_ratio_.tolist()
+                )
+
+
                 st.subheader("🎯 Top VC Matches")
                 for match in top_matches:
                     st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
