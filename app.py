@@ -21,6 +21,8 @@ from agents.dimension_explainer_agent import DimensionExplainerAgent
 from agents.founder_survey_agent import FounderSurveyAgent
 from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
+from sklearn.decomposition import PCA
+
 
 portfolio_enricher = PortfolioEnricherAgent()
 
