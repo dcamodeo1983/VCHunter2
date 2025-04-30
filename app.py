@@ -237,7 +237,7 @@ if vc_csv:
             portfolio_text = "\n".join([
                 f"{entry['name']}: {entry['description']}"
                 for entry in structured_portfolio
-            ])
+    ])  # FIX: aligned closing bracket
 
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(url, vc_site_text, structured_portfolio)
