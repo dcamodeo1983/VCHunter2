@@ -29,21 +29,21 @@ portfolio_enricher = PortfolioEnricherAgent()
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
 def load_vc_profiles():
-    try:
+        try:
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
-    except json.JSONDecodeError:
+        except json.JSONDecodeError:
         return []
     return []
 
 def save_vc_profiles(profiles):
     if not profiles:
-        st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
+            st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
-        st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
+            st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
@@ -112,7 +112,7 @@ if uploaded_file:
 
         if survey_summary:
             combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}"
-        else:
+    else:
             combined_input = summary.strip()
 
         st.info("🔗 Creating embedding...")
@@ -135,18 +135,18 @@ if uploaded_file:
                 founder_cluster_id = top_cluster
 
                 vc_profiles = load_vc_profiles()
-    try:
-        st.write("📦 vc_profiles =", vc_profiles)
-    except NameError:
-        st.warning("⚠️ vc_profiles is not defined yet.")
-    try:
-        st.write("📊 coords_2d =", coords_2d)
-    except NameError:
-        st.warning("⚠️ coords_2d is not defined yet.")
-    try:
-        st.write("📈 founder_2d =", founder_2d)
-    except NameError:
-        st.warning("⚠️ founder_2d is not defined yet.")
+        try:
+            st.write("📦 vc_profiles =", vc_profiles)
+        except NameError:
+            st.warning("⚠️ vc_profiles is not defined yet.")
+        try:
+            st.write("📊 coords_2d =", coords_2d)
+        except NameError:
+            st.warning("⚠️ coords_2d is not defined yet.")
+        try:
+            st.write("📈 founder_2d =", founder_2d)
+        except NameError:
+            st.warning("⚠️ founder_2d is not defined yet.")
 
                 vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
 
@@ -157,15 +157,15 @@ if uploaded_file:
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
 
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
-                if coords_2d is not None and len(coords_2d) > 0:
-    try:
-        st.write("📊 coords_2d =", coords_2d)
-    except NameError:
-        st.warning("⚠️ coords_2d is not defined yet.")
-                else:
-        st.warning("⚠️ coords_2d is empty or PCA failed.")
+    if coords_2d is not None and len(coords_2d) > 0:
+        try:
+            st.write("📊 coords_2d =", coords_2d)
+        except NameError:
+            st.warning("⚠️ coords_2d is not defined yet.")
+    else:
+            st.warning("⚠️ coords_2d is empty or PCA failed.")
 
-                founder_2d = pca.transform([embedding])[0]
+    founder_2d = pca.transform([embedding])[0]
 
                 dimension_labels = interpret_pca_dimensions(
                     components=pca.components_.tolist(),
@@ -197,11 +197,11 @@ if uploaded_file:
                     st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
                     st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
                     st.plotly_chart(fig, use_container_width=True)
-                else:
-        st.warning("No VC profiles found with valid cluster coordinates.")
-            else:
-        st.warning("⚠️ No top VC matches were found.")
-        else:
+    else:
+            st.warning("No VC profiles found with valid cluster coordinates.")
+    else:
+            st.warning("⚠️ No top VC matches were found.")
+    else:
             st.error("❌ No valid embedding returned.")
 
 # === VC URL Upload ===
@@ -228,8 +228,8 @@ if vc_csv:
             if portfolio_links:
                 st.info(f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping...")
                 structured_portfolio = enricher.extract_portfolio_entries_from_pages(portfolio_links)
-            else:
-        st.warning("⚠️ No portfolio page links found. Using homepage instead.")
+    else:
+            st.warning("⚠️ No portfolio page links found. Using homepage instead.")
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
 
             st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
