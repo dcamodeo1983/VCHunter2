@@ -39,7 +39,7 @@ def load_vc_profiles():
 
 def save_vc_profiles(profiles):
     if not profiles:
-            st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
+        st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
