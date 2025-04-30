@@ -142,7 +142,17 @@ if uploaded_file:
                 vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
 
                 pca = PCA(n_components=2, random_state=42)
+                vc_profiles = load_vc_profiles()
+                vc_embeddings = [p["embedding"] for p in vc_profiles if isinstance(p.get("embedding"), list)]
+                pca = PCA(n_components=2, random_state=42)
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
+
+                coords_2d = pca.fit_transform(np.array(vc_embeddings))
+                if coords_2d is not None and len(coords_2d) > 0:
+                    st.write("📊 coords_2d =", coords_2d)
+                else:
+                    st.warning("⚠️ coords_2d is empty or PCA failed.")
+
                 founder_2d = pca.transform([embedding])[0]
 
                 dimension_labels = interpret_pca_dimensions(
