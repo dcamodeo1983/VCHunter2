@@ -29,7 +29,7 @@ portfolio_enricher = PortfolioEnricherAgent()
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
 def load_vc_profiles():
-        try:
+    try:
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
@@ -135,15 +135,15 @@ if uploaded_file:
                 founder_cluster_id = top_cluster
 
                 vc_profiles = load_vc_profiles()
-        try:
+    try:
             st.write("📦 vc_profiles =", vc_profiles)
         except NameError:
             st.warning("⚠️ vc_profiles is not defined yet.")
-        try:
+    try:
             st.write("📊 coords_2d =", coords_2d)
         except NameError:
             st.warning("⚠️ coords_2d is not defined yet.")
-        try:
+    try:
             st.write("📈 founder_2d =", founder_2d)
         except NameError:
             st.warning("⚠️ founder_2d is not defined yet.")
@@ -158,7 +158,7 @@ if uploaded_file:
 
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
     if coords_2d is not None and len(coords_2d) > 0:
-        try:
+    try:
             st.write("📊 coords_2d =", coords_2d)
         except NameError:
             st.warning("⚠️ coords_2d is not defined yet.")
