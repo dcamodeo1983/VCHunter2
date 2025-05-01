@@ -200,8 +200,6 @@ if uploaded_file:
                 missing_category = [p['name'] for p in vc_profiles if not p.get('category')]
                 st.warning(f"Profiles missing coordinates: {len(missing_coords)} → {missing_coords[:5]}")
                 st.warning(f"Profiles missing categories: {len(missing_category)} → {missing_category[:5]}")
-                else:
-                    st.warning("No VC profiles found with valid cluster coordinates.")
             else:
                 st.warning("⚠️ No top VC matches were found.")
         else:
@@ -305,6 +303,16 @@ if vc_csv:
     if isinstance(embedding, list):
         founder_2d = pca.transform([embedding])[0]
         fig, labels = viz_agent.generate_cluster_map(
+        if fig:
+            st.markdown(
+                f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+            )
+            st.markdown(
+                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No VC profiles found with valid cluster coordinates.")
         profiles=vc_profiles,
         coords_2d=coords_2d,
         pca=pca,
