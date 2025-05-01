@@ -1,17 +1,15 @@
-
 import json
 import os
-from openai import OpenAI
+import openai
 from sklearn.decomposition import PCA
 import numpy as np
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 
-
 class DimensionExplainerAgent:
     def __init__(self, api_key):
-        self.client = OpenAI(api_key=api_key)
+        openai.api_key = api_key
 
     def generate_axis_labels(self):
         if not os.path.exists(VC_PROFILE_PATH):
@@ -39,8 +37,6 @@ Component 2 explains {explained_variance[1]*100:.2f}% of the variance.
 
 Explain what each axis might represent in terms of investment behavior and strategy, based on how firms are spread across it.
 
-Be concise but informative. Use accessible language that a startup founder could understand.
-
 Return JSON with:
 - x_label
 - y_label
@@ -49,7 +45,7 @@ Return JSON with:
 """
 
         try:
-            response = self.client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.5,
