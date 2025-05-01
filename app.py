@@ -44,7 +44,6 @@ st.title("🧠 VC Hunter: Founder Intelligence Report")
 st.markdown(
     "Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs."
 )
-)
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
