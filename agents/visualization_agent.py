@@ -1,14 +1,13 @@
-
 import plotly.express as px
 import pandas as pd
 import numpy as np
 import json
 import os
+from collections import Counter
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
-
 
 class VisualizationAgent:
     def __init__(self, api_key=None):
@@ -32,6 +31,12 @@ class VisualizationAgent:
             "y_description": "",
         }
 
+    def load_cluster_descriptions(self):
+        if os.path.exists(CLUSTER_LABELS_PATH):
+            with open(CLUSTER_LABELS_PATH, "r") as f:
+                return json.load(f)
+        return {}
+
     def generate_cluster_map(
         self,
         profiles=None,
@@ -42,14 +47,7 @@ class VisualizationAgent:
         founder_cluster_id=None,
         top_match_names=None,
     ):
-        if not profiles:
-            print("❌ No profiles provided to visualization.")
-            return None, {}
-        if coords_2d is None:
-            print("❌ coords_2d missing in visualization.")
-            return None, {}
-        if pca is None:
-            print("❌ PCA object missing in visualization.")
+        if not profiles or coords_2d is None or pca is None:
             return None, {}
 
         for profile, (x, y) in zip(profiles, coords_2d):
@@ -57,6 +55,8 @@ class VisualizationAgent:
             profile["pca_y"] = float(y)
 
         dim_labels = dimension_labels or self.load_dimension_labels()
+        top_match_names = top_match_names or []
+        normalized_top_names = [name.strip().lower() for name in top_match_names]
 
         df = pd.DataFrame({
             "VC Name": [p.get("name") for p in profiles],
@@ -74,8 +74,7 @@ class VisualizationAgent:
         }
         df["Color"] = df["Category"].map(category_color_map)
 
-        top_match_names = top_match_names or []
-        normalized_top_names = [name.strip().lower() for name in top_match_names]
+        # Top matches as stars, same color; others as circles
         df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
         df["Symbol"] = df["Normalized VC Name"].apply(
             lambda name: "star" if name in normalized_top_names else "circle"
@@ -131,4 +130,11 @@ class VisualizationAgent:
                 showlegend=True,
             )
 
-        return fig, dim_labels
+        # Sort and print cluster descriptions by category size
+        cluster_sizes = Counter(df["Category"])
+        cluster_descriptions = self.load_cluster_descriptions()
+        sorted_descriptions = sorted(cluster_descriptions.items(), key=lambda x: cluster_sizes.get(x[0], 0))
+
+        description_block = "\n".join([f"**{cat}**: {desc}" for cat, desc in sorted_descriptions])
+
+        return fig, {**dim_labels, "descriptions_markdown": description_block}
