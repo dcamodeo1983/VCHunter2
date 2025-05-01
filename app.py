@@ -159,7 +159,7 @@ if uploaded_file:
                         ),
                         None,
                         )
-                        founder_cluster_id = top_cluster
+                founder_cluster_id = top_cluster
 
                         st.subheader("🎯 Top VC Matches")
                 for match in top_matches:
@@ -330,3 +330,4 @@ if vc_csv:
         st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
+
