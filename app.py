@@ -179,7 +179,8 @@ if uploaded_file:
                 coords_2d = pca.fit_transform(np.array(vc_embeddings))
                 founder_2d = pca.transform([embedding])[0]
                 dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
-dimension_labels = VisualizationAgent().load_dimension_labels()
+                dim_agent.generate_axis_labels()
+                dimension_labels = dim_agent.load_dimension_labels()
                 fig, labels = viz_agent.generate_cluster_map(
     profiles=vc_profiles,
     coords_2d=coords_2d,
