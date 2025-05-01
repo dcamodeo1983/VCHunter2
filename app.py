@@ -192,7 +192,7 @@ if uploaded_file:
                 missing_category = [p['name'] for p in vc_profiles if not p.get('category')]
                 st.warning(f"Profiles missing coordinates: {len(missing_coords)} → {missing_coords[:5]}")
                 st.warning(f"Profiles missing categories: {len(missing_category)} → {missing_category[:5]}")
-                else:
+                    else:
                     st.warning("No VC profiles found with valid cluster coordinates.")
             else:
                 st.warning("⚠️ No top VC matches were found.")
