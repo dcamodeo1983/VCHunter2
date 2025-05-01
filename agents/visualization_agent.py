@@ -74,7 +74,6 @@ class VisualizationAgent:
         }
         df["Color"] = df["Category"].map(category_color_map)
 
-        # Top matches as stars, same color; others as circles
         df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
         df["Symbol"] = df["Normalized VC Name"].apply(
             lambda name: "star" if name in normalized_top_names else "circle"
@@ -130,7 +129,6 @@ class VisualizationAgent:
                 showlegend=True,
             )
 
-        # Sort and print cluster descriptions by category size
         cluster_sizes = Counter(df["Category"])
         cluster_descriptions = self.load_cluster_descriptions()
         sorted_descriptions = sorted(cluster_descriptions.items(), key=lambda x: cluster_sizes.get(x[0], 0))
