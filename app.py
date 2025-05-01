@@ -310,7 +310,7 @@ if vc_csv:
         profile['pca_y'] = float(y)
     save_vc_profiles(vc_profiles)
     st.success(f"📌 Assigned PCA coordinates to {len(vc_profiles)} profiles.")
-            st.info(f"🔄 {len(cached_profiles)} profiles saved after scraping.")
+    st.info(f"🔄 {len(cached_profiles)} profiles saved after scraping.")
 
 # === Clustering + Categorization ===
 st.divider()
