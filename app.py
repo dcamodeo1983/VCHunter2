@@ -120,8 +120,9 @@ if st.button("Run Analysis"):
 
         st.subheader("🔎 Top VC Matches")
         for match in matches[:5]:
-            st.markdown(f"**{match['name']}**  
+            for match in matches[:5]:
+    st.markdown(f"""**{match['name']}**  
 Score: {match['score']:.2f}  
-URL: {match['url']}")
+URL: {match['url']}""")
 
     st.success("✅ Analysis Complete.")
