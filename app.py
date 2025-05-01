@@ -117,6 +117,37 @@ if uploaded_file:
             matcher = FounderMatcherAgent(embedding)
             top_matches = matcher.match(top_k=5)
 
+            # Generate rationale using OpenAI
+            import openai
+            openai.api_key = openai_api_key
+
+            for match in top_matches:
+                prompt = f"""
+You are a startup advisor. A founder has submitted this business summary:
+
+{combined_input}
+
+A venture capital firm has this strategy summary:
+
+{match['rationale']}
+
+Explain why this VC is a strong match. Respond in this format:
+"This match specializes in [area]. It is a match for your business because [justification]."
+"""
+                try:
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a helpful VC advisor."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.7
+                    )
+                    match['rationale'] = response.choices[0].message.content.strip()
+                except Exception as e:
+                    match['rationale'] = "(Rationale generation failed)"
+                    st.warning(f"Rationale generation error: {str(e)}")
+
             if top_matches:
                 top_vc_names = [match["name"].strip().lower() for match in top_matches]
                 top_match_url = top_matches[0]["url"]
@@ -237,23 +268,9 @@ if vc_csv:
         )
 
         if fig:
-    
-    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
-    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
-    st.plotly_chart(fig, use_container_width=True)
-
-    if 'descriptions_markdown' in labels:
-        st.subheader("📘 VC Strategic Categories Explained")
-        st.markdown(labels['descriptions_markdown'])
-
-            # Show category descriptions if available
-            cluster_labels_path = "outputs/cluster_labels.json"
-            if os.path.exists(cluster_labels_path):
-                with open(cluster_labels_path, "r") as f:
-                    cluster_labels = json.load(f)
-                st.subheader("📘 VC Strategic Categories Explained")
-                for label, description in cluster_labels.items():
-                    st.markdown(f"**{label}**: {description}")
+            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
 
