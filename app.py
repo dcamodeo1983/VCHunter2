@@ -237,9 +237,13 @@ if vc_csv:
         )
 
         if fig:
-            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
-            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
-            st.plotly_chart(fig, use_container_width=True)
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
+    st.plotly_chart(fig, use_container_width=True)
+
+    if 'descriptions_markdown' in labels:
+        st.subheader("📘 VC Strategic Categories Explained")
+        st.markdown(labels['descriptions_markdown'])
 
             # Show category descriptions if available
             cluster_labels_path = "outputs/cluster_labels.json"
