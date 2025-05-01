@@ -259,7 +259,7 @@ if vc_csv:
             vc_embedding = embed_vc_profile(
                 vc_site_text, portfolio_text, strategy_summary, embedder
             )
-
+            cached_profiles = load_vc_profiles()
             vc_profile = {
                 "name": url.split("//")[-1].replace("www.", ""),
                 "url": url,
@@ -268,12 +268,12 @@ if vc_csv:
                 "strategy_summary": strategy_summary,
                 "strategic_tags": vc_tags,
                 "motivational_signals": vc_motivations,
-                "category": None,
+                "category": next((p.get("category") for p in cached_profiles if p["url"] == url), "Uncategorized"),
                 "cluster_id": None,
                 "coordinates": [None, None],
             }
 
-            cached_profiles = load_vc_profiles()
+            
             cached_profiles = [p for p in cached_profiles if p["url"] != url]
             cached_profiles.append(vc_profile)
             save_vc_profiles(cached_profiles)
@@ -295,4 +295,6 @@ if st.button("Run Clustering + Categorization"):
 
     dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
     dim_agent.generate_axis_labels()
+    dimension_labels = dim_agent.load_dimension_labels()
+
     st.success("Strategic Dimensions Generated.")
