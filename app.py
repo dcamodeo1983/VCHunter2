@@ -44,6 +44,7 @@ st.title("🧠 VC Hunter: Founder Intelligence Report")
 st.markdown(
     "Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs."
 )
+)
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
@@ -63,9 +64,9 @@ if uploaded_file:
     text = reader.extract_text(uploaded_file)
     if not text.strip():
         st.error("❌ No readable text found in the document.")
-                f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
             )
-                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
             )
         cleaned_text = clean_text(text)
         token_count = count_tokens(cleaned_text)
@@ -282,7 +283,7 @@ if vc_csv:
     vc_profiles = load_vc_profiles()
     if isinstance(embedding, list):
         founder_2d = pca.transform([embedding])[0]
-                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
             )
         profiles=vc_profiles,
         coords_2d=coords_2d,
@@ -309,11 +310,11 @@ st.divider()
         )
         if fig:
             st.markdown(
-                f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
             )
             st.markdown(
-                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
             )
-            st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
