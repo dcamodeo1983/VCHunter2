@@ -149,19 +149,16 @@ Explain why this VC is a strong match. Respond in this format:
                     st.warning(f"Rationale generation error: {str(e)}")
 
             if top_matches:
-                top_vc_names = [match["name"].strip().lower() for match in top_matches]
-                top_match_url = top_matches[0]["url"]
-                cluster_agent = ClusteringAgent()
-                vc_profiles = cluster_agent.load_profiles()
-                top_cluster = next((p.get("cluster_id") for p in vc_profiles if p["url"] == top_match_url), None)
-                founder_cluster_id = top_cluster
-
                 st.subheader("🎯 Top VC Matches")
+                st.markdown("Each firm below is matched to your concept with a tailored rationale:")
+
                 for match in top_matches:
                     st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
                     st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
                     rationale = match.get('rationale') or 'No strategy available.'
-                    st.markdown(f"• Strategy: {rationale}")
+                    st.markdown(f"**Why this VC is a match:**
+
+> {rationale}")
                     st.markdown("---")
 else:
     st.info("Please upload a white paper to begin analysis.")
@@ -271,6 +268,10 @@ if vc_csv:
             st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}")
             st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}")
             st.plotly_chart(fig, use_container_width=True)
+
+            if 'descriptions_markdown' in labels:
+                st.subheader("🔎 VC Category Descriptions")
+                st.markdown(labels['descriptions_markdown'])
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
 
