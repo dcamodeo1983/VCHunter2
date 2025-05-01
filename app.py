@@ -313,16 +313,6 @@ if vc_csv:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
-        if fig:
-            st.markdown(
-                f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
-            )
-            st.markdown(
-                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No VC profiles found with valid cluster coordinates.")
         profiles=vc_profiles,
         coords_2d=coords_2d,
         pca=pca,
