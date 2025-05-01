@@ -43,7 +43,6 @@ st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
 st.markdown(
     "Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs."
-)
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
@@ -53,7 +52,6 @@ founder_2d = None
 founder_cluster_id = None
 uploaded_file = st.file_uploader(
     "📄 Upload Your White Paper", type=["pdf", "txt", "docx"]
-)
 
 if uploaded_file:
     reader = FounderDocReaderAgent()
@@ -63,10 +61,10 @@ if uploaded_file:
     text = reader.extract_text(uploaded_file)
     if not text.strip():
         st.error("❌ No readable text found in the document.")
-        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
-            )
-        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-            )
+        st.markdown(
+            f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+        st.markdown(
+            f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
         cleaned_text = clean_text(text)
         token_count = count_tokens(cleaned_text)
         st.success(f"✅ Document processed. ({token_count} tokens)")
@@ -82,10 +80,8 @@ if uploaded_file:
         with st.form("founder_survey"):
             product_stage = st.selectbox(
                 "Product Stage", ["Idea", "Prototype", "MVP", "Scaling"]
-            )
             revenue = st.selectbox(
                 "Revenue Range", ["$0", "< $10K", "$10K–$100K", "$100K+"]
-            )
             team_size = st.number_input("Team Size", min_value=1, max_value=10, step=1)
             product_type = st.selectbox(
                 "Product Type",
@@ -97,18 +93,14 @@ if uploaded_file:
                     "Marketplace",
                     "Other",
                 ],
-            )
             location = st.text_input("Headquarters Location")
             gtm = st.selectbox(
                 "Go-To-Market Strategy",
                 ["Sales-led", "Product-led", "Bottom-up", "Enterprise"],
-            )
             customer = st.selectbox(
                 "Customer Type", ["Enterprise", "SMB", "Consumer", "Government"]
-            )
             moat = st.selectbox(
                 "Moat", ["Yes – IP", "Yes – Data", "Yes – Brand", "No Moat Yet"]
-            )
             submitted = st.form_submit_button("Save Survey")
 
             if submitted:
@@ -130,7 +122,6 @@ if uploaded_file:
             f"{summary.strip()}\n\n{survey_summary.strip()}"
             if survey_summary
             else summary.strip()
-        )
         st.info("🔗 Creating embedding...")
         embedding = embedder.embed_text(combined_input)
 
@@ -151,15 +142,12 @@ if uploaded_file:
                         if p["url"] == top_match_url
                     ),
                     None,
-                )
                 founder_cluster_id = top_cluster
 
                 st.subheader("🎯 Top VC Matches")
                 for match in top_matches:
                         f"**{match['name']}** — [{match['url']}]({match['url']})"
-                    )
                         f"• Category: {match['category']}  |  Similarity Score: {match['score']}"
-                    )
                     rationale = match.get('rationale') or 'No strategy available.'
 
                 viz_agent = VisualizationAgent(api_key=openai_api_key)
@@ -213,10 +201,8 @@ if vc_csv:
             if portfolio_links:
                 st.info(
                     f"🔗 Found {len(portfolio_links)} portfolio link(s). Scraping..."
-                )
                 structured_portfolio = enricher.extract_portfolio_entries_from_pages(
                     portfolio_links
-                )
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
 
 
@@ -226,12 +212,10 @@ if vc_csv:
                     f"{entry['name']}: {entry['description']}"
                     for entry in structured_portfolio
                 ]
-            )
 
             st.info("Interpreting strategy...")
             strategy_summary = interpreter.interpret_strategy(
                 url, vc_site_text, structured_portfolio
-            )
 
             tagger = StrategicTaggerAgent(api_key=openai_api_key)
             vc_tag_data = tagger.generate_tags_and_signals(strategy_summary)
@@ -240,7 +224,6 @@ if vc_csv:
 
             vc_embedding = embed_vc_profile(
                 vc_site_text, portfolio_text, strategy_summary, embedder
-            )
 
             vc_profile = {
                 "name": url.split("//")[-1].replace("www.", ""),
@@ -282,19 +265,18 @@ if vc_csv:
     vc_profiles = load_vc_profiles()
     if isinstance(embedding, list):
         founder_2d = pca.transform([embedding])[0]
-        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-            )
+        st.markdown(
+            f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
         profiles=vc_profiles,
         coords_2d=coords_2d,
         pca=pca,
         founder_embedding_2d=founder_2d,
         founder_cluster_id=founder_cluster_id,
         top_match_names=top_vc_names,
-        )
-        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
-        )
-        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-        )
+        st.markdown(
+            f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+        st.markdown(
+            f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
 
 st.divider()
     if isinstance(embedding, list):
@@ -306,14 +288,11 @@ st.divider()
             founder_embedding_2d=founder_2d,
             founder_cluster_id=founder_cluster_id,
             top_match_names=top_vc_names,
-        )
         if fig:
             st.markdown(
         f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
-            )
             st.markdown(
         f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-            )
         st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
