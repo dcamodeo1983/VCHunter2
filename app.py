@@ -33,7 +33,6 @@ def load_vc_profiles():
 
 def save_vc_profiles(profiles):
     if not profiles:
-        st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
     with open(VC_PROFILE_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
@@ -42,7 +41,6 @@ def save_vc_profiles(profiles):
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
-st.markdown(
     "Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs."
 )
 
@@ -64,15 +62,10 @@ if uploaded_file:
     text = reader.extract_text(uploaded_file)
     if not text.strip():
         st.error("❌ No readable text found in the document.")
-        if fig:
-            st.markdown(
                 f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
             )
-            st.markdown(
                 f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
             )
-            st.plotly_chart(fig, use_container_width=True)
-    else:
         cleaned_text = clean_text(text)
         token_count = count_tokens(cleaned_text)
         st.success(f"✅ Document processed. ({token_count} tokens)")
@@ -80,7 +73,6 @@ if uploaded_file:
         st.info("🧠 Summarizing your concept using GPT...")
         summary = summarizer.summarize(cleaned_text)
         st.header("📄 Startup Summary")
-        st.markdown(f"> {summary}")
 
         survey_agent = FounderSurveyAgent()
         survey_summary = ""
@@ -163,15 +155,11 @@ if uploaded_file:
 
                 st.subheader("🎯 Top VC Matches")
                 for match in top_matches:
-                    st.markdown(
                         f"**{match['name']}** — [{match['url']}]({match['url']})"
                     )
-                    st.markdown(
                         f"• Category: {match['category']}  |  Similarity Score: {match['score']}"
                     )
                     rationale = match.get('rationale') or 'No strategy available.'
-                    st.markdown(f"• Strategy: {rationale}")
-                    st.markdown("---")
 
                 viz_agent = VisualizationAgent(api_key=openai_api_key)
                 import numpy as np
@@ -198,11 +186,6 @@ if uploaded_file:
                 vc_profiles = load_vc_profiles()
                 missing_coords = [p['name'] for p in vc_profiles if p.get('pca_x') is None or p.get('pca_y') is None]
                 missing_category = [p['name'] for p in vc_profiles if not p.get('category')]
-                st.warning(f"Profiles missing coordinates: {len(missing_coords)} → {missing_coords[:5]}")
-                st.warning(f"Profiles missing categories: {len(missing_category)} → {missing_category[:5]}")
-            else:
-                st.warning("⚠️ No top VC matches were found.")
-        else:
             st.error("❌ No valid embedding returned.")
 
 # === VC URL Upload ===
@@ -233,11 +216,8 @@ if vc_csv:
                 structured_portfolio = enricher.extract_portfolio_entries_from_pages(
                     portfolio_links
                 )
-            else:
-                st.warning("⚠️ No portfolio page links found. Using homepage instead.")
                 structured_portfolio = enricher.extract_portfolio_entries(vc_site_text)
 
-            st.markdown(f"✅ {len(structured_portfolio)} portfolio entries found.")
 
             st.info("Embedding profile...")
             portfolio_text = "\n".join(
@@ -251,7 +231,6 @@ if vc_csv:
             strategy_summary = interpreter.interpret_strategy(
                 url, vc_site_text, structured_portfolio
             )
-            st.markdown(f"🧠 Strategy Summary: {strategy_summary[:300]}...")
 
             tagger = StrategicTaggerAgent(api_key=openai_api_key)
             vc_tag_data = tagger.generate_tags_and_signals(strategy_summary)
@@ -302,7 +281,31 @@ if vc_csv:
     vc_profiles = load_vc_profiles()
     if isinstance(embedding, list):
         founder_2d = pca.transform([embedding])[0]
+                f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+            )
+        profiles=vc_profiles,
+        coords_2d=coords_2d,
+        pca=pca,
+        founder_embedding_2d=founder_2d,
+        founder_cluster_id=founder_cluster_id,
+        top_match_names=top_vc_names,
+        )
+        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+        )
+        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+        )
+
+st.divider()
+    if isinstance(embedding, list):
+        founder_2d = pca.transform([embedding])[0]
         fig, labels = viz_agent.generate_cluster_map(
+            profiles=vc_profiles,
+            coords_2d=coords_2d,
+            pca=pca,
+            founder_embedding_2d=founder_2d,
+            founder_cluster_id=founder_cluster_id,
+            top_match_names=top_vc_names,
+        )
         if fig:
             st.markdown(
                 f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
@@ -313,20 +316,3 @@ if vc_csv:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
-        profiles=vc_profiles,
-        coords_2d=coords_2d,
-        pca=pca,
-        founder_embedding_2d=founder_2d,
-        founder_cluster_id=founder_cluster_id,
-        top_match_names=top_vc_names,
-        )
-        if fig:
-        st.markdown(
-        f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
-        )
-        st.markdown(
-        f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
