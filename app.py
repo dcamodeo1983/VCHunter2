@@ -41,6 +41,7 @@ def save_vc_profiles(profiles):
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
+st.markdown(
     "Upload your startup concept to receive curated insights and a clear summary of your business, powered by LLMs."
 )
 
