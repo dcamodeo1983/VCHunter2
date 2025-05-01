@@ -63,8 +63,10 @@ if uploaded_file:
         st.error("❌ No readable text found in the document.")
         st.markdown(
             f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}% variance):** {labels.get('x_description', '')}"
+            )  
         st.markdown(
             f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}% variance):** {labels.get('y_description', '')}"
+            )
         cleaned_text = clean_text(text)
         token_count = count_tokens(cleaned_text)
         st.success(f"✅ Document processed. ({token_count} tokens)")
