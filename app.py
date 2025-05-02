@@ -59,6 +59,7 @@ if not openai_api_key:
     st.stop()
 openai.api_key = openai_api_key
 embedder = EmbedderAgent(api_key=openai_api_key)
+client = openai.OpenAI(api_key=openai_api_key)
 
 # Document upload and processing
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
@@ -141,7 +142,7 @@ Respond in this format:
 This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
 """
                 try:
-                    response = openai.ChatCompletion.create(
+                    response = client.chat.completions.create(
                         model="gpt-4",
                         messages=[
                             {"role": "system", "content": "You are a precise and insightful VC advisor."},
@@ -157,12 +158,23 @@ This VC specializes in [area]. It is a strong match for your business because [d
 
             if top_matches:
                 st.subheader("🎯 Top 5 VC Matches")
-                st.dataframe(pd.DataFrame(top_matches), use_container_width=True)
+                st.dataframe(
+                    pd.DataFrame([
+                        {
+                            "Name": m["name"],
+                            "URL": m["url"],
+                            "Category": m.get("category", "Uncategorized"),
+                            "Score": f"{m['score']:.2f}",
+                            "Rationale": m.get("rationale", "No rationale available.")
+                        } for m in top_matches
+                    ]),
+                    use_container_width=True
+                )
                 with st.expander("📝 Detailed Match Justifications"):
                     for match in top_matches:
                         st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                        st.markdown(f"• Category: {match['category']}  |  Score: {match['score']:.2f}")
-                        st.markdown(f"{match['rationale']}")
+                        st.markdown(f"• Category: {match.get('category', 'Uncategorized')}  |  Score: {match['score']:.2f}")
+                        st.markdown(f"{match.get('rationale', 'No rationale available.')}")
                         st.markdown("---")
         else:
             st.error("❌ Failed to create founder embedding.")
@@ -265,6 +277,11 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             p["pca_x"], p["pca_y"] = float(coords[i][0]), float(coords[i][1])
         save_vc_profiles(profiles)
 
+        # Log PCA variance for verification
+        with st.expander("🔍 PCA Variance Details"):
+            st.write(f"PC1 Variance: {pca.explained_variance_ratio_[0] * 100:.1f}%")
+            st.write(f"PC2 Variance: {pca.explained_variance_ratio_[1] * 100:.1f}%")
+
         # Transform founder embedding
         founder_2d = pca.transform([founder_embedding])[0]
 
@@ -279,14 +296,13 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             "y_variance": pca.explained_variance_ratio_[1],
         }
         try:
-            # Assume DimensionExplainerAgent uses a prompt to generate intuitive labels
-            dim_agent.generate_axis_labels()
+            dim_agent.generate_axis_labels(profiles=valid_profiles, pca=pca)
             loaded_labels = dim_agent.load_dimension_labels()
             dim_labels.update(loaded_labels)
             dim_labels["x_variance"] = pca.explained_variance_ratio_[0]
             dim_labels["y_variance"] = pca.explained_variance_ratio_[1]
         except Exception as e:
-            st.warning(f"⚠️ Error generating dimension labels: {str(e)}")
+            st.warning(f"⚠️ Error generating dimension labels: {str(e)}. Using default labels.")
 
         # Generate cluster map
         viz_agent = VisualizationAgent(api_key=openai_api_key)
@@ -297,11 +313,10 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             dimension_labels=dim_labels,
             founder_embedding_2d=founder_2d,
             founder_cluster_id=None,
-            top_match_names=[m["url"].strip().lower() for m in top_matches],
+            top_match_names=top_vc_urls,
         )
 
         # Generate category narratives
-        client = openai.OpenAI(api_key=openai_api_key)
         category_narratives = {}
         unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
         for category in unique_categories:
