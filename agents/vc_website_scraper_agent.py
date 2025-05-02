@@ -11,14 +11,14 @@ class VCWebsiteScraperAgent:
     def scrape_text(self, url):
         try:
             st.write(f"🌐 Fetching {url}...")
-            response = self.scraper.get(url, timeout=10)
+            response = self.scraper.get(url, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
             for element in soup(["script", "style", "nav", "footer", "header"]):
                 element.decompose()
 
-            text_elements = soup.find_all(["p", "h1", "h2", "h3", "div", "section"])
+            text_elements = soup.find_all(["p", "h1", "h2", "h3", "h4", "div", "section", "article", "span"])
             raw_text = " ".join([elem.get_text(strip=True) for elem in text_elements if elem.get_text(strip=True)])
 
             cleaned_text = re.sub(r"\s+", " ", raw_text).strip()
@@ -29,7 +29,7 @@ class VCWebsiteScraperAgent:
             sentences = [s.strip() for s in cleaned_text.split(".") if s.strip()]
             filtered_sentences = [
                 s for s in sentences
-                if len(s.split()) > 5 and not any(keyword in s.lower() for keyword in ["cookie policy", "privacy policy", "terms of use", "contact us", "sign up", "log in"])
+                if len(s.split()) > 3 and not any(keyword in s.lower() for keyword in ["cookie policy", "privacy policy", "terms of use", "contact us", "sign up", "log in", "newsletter"])
             ]
             final_text = ". ".join(filtered_sentences).strip()
 
@@ -42,16 +42,17 @@ class VCWebsiteScraperAgent:
 
     def find_portfolio_links(self, base_url):
         try:
-            response = self.scraper.get(base_url, timeout=10)
+            response = self.scraper.get(base_url, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             links = []
             for a in soup.find_all("a", href=True):
                 href = a["href"]
-                if any(keyword in href.lower() or keyword in a.get_text(strip=True).lower() for keyword in ["portfolio", "companies", "investments"]):
+                link_text = a.get_text(strip=True).lower()
+                if any(keyword in href.lower() or keyword in link_text for keyword in ["portfolio", "companies", "investments", "our work"]):
                     href = urljoin(base_url, href)
                     links.append(href)
-            return list(set(links))[:5]
+            return list(set(links))[:10]
         except Exception as e:
             st.error(f"❌ Error finding portfolio links for {base_url}: {str(e)}")
             return []
