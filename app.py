@@ -64,6 +64,7 @@ embedder = EmbedderAgent(api_key=openai_api_key)
 uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
 founder_embedding = None
 top_matches = []
+combined_input = ""
 if uploaded_file:
     try:
         reader = FounderDocReaderAgent()
@@ -118,26 +119,36 @@ if uploaded_file:
             top_matches = matcher.match(top_k=5)
             top_vc_urls = [m["url"].strip().lower() for m in top_matches]
 
-            # Generate rationale for each match
+            # Generate robust rationale for each match
             for match in top_matches:
                 prompt = f"""
+You are a senior VC advisor helping a startup founder find the best venture capital firms for their company.
+
+Founder Profile:
 {combined_input}
 
-A venture capital firm has this strategy summary:
+VC Profile:
+- Name: {match['name']}
+- Strategy Summary: {match['strategy_summary'][:500]}
+- Strategic Tags: {', '.join(match.get('strategic_tags', []))}
+- Portfolio Size: {match.get('portfolio_size', 0)} companies
+- Category: {match.get('category', 'Uncategorized')}
 
-{match['rationale']}
+Your task is to explain why this VC is a strong match for the founder's startup. Be specific, referencing the founder's product stage, customer type, go-to-market strategy, or other relevant details from their profile. Highlight aspects of the VC’s strategy, focus, or portfolio that align with the founder’s needs.
 
-Explain why this VC is a strong match. Respond in this format:
-"This match specializes in [area]. It is a match for your business because [justification]."
+Respond in this format:
+**Why {match['name']} is a Match**:
+This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
 """
                 try:
                     response = openai.ChatCompletion.create(
                         model="gpt-4",
                         messages=[
-                            {"role": "system", "content": "You are a helpful VC advisor."},
+                            {"role": "system", "content": "You are a precise and insightful VC advisor."},
                             {"role": "user", "content": prompt}
                         ],
-                        temperature=0.7
+                        temperature=0.7,
+                        max_tokens=200
                     )
                     match['rationale'] = response.choices[0].message.content.strip()
                 except Exception as e:
@@ -145,13 +156,13 @@ Explain why this VC is a strong match. Respond in this format:
                     st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
 
             if top_matches:
-                st.subheader("🎯 Top VC Matches")
+                st.subheader("🎯 Top 5 VC Matches")
                 st.dataframe(pd.DataFrame(top_matches), use_container_width=True)
-                with st.expander("📝 Match Rationale"):
+                with st.expander("📝 Detailed Match Justifications"):
                     for match in top_matches:
                         st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                        st.markdown(f"• Category: {match['category']}  |  Score: {match['score']}")
-                        st.markdown(f"> {match['rationale']}")
+                        st.markdown(f"• Category: {match['category']}  |  Score: {match['score']:.2f}")
+                        st.markdown(f"{match['rationale']}")
                         st.markdown("---")
         else:
             st.error("❌ Failed to create founder embedding.")
@@ -203,8 +214,11 @@ if vc_csv:
                         "strategic_tags": tag_data.get("tags", []),
                         "motivational_signals": tag_data.get("motivational_signals", []),
                         "category": None,
+                        "category_rationale": None,
+                        "category_fit": None,
                         "cluster_id": None,
-                        "coordinates": [None, None],
+                        "pca_x": None,
+                        "pca_y": None,
                     }
 
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
@@ -216,7 +230,7 @@ if vc_csv:
     except Exception as e:
         st.error(f"❌ Error reading CSV: {str(e)}")
 
-# Clustering and visualization
+# Clustering, categorization, and visualization
 if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
     try:
         profiles = load_vc_profiles()
@@ -224,7 +238,15 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             st.warning("⚠️ No valid VC profiles found for clustering.")
             st.stop()
 
-        # Apply PCA for dimensionality reduction
+        # Apply K-means clustering
+        clustering_agent = ClusteringAgent(api_key=openai_api_key)
+        profiles = clustering_agent.assign_kmeans_clusters(n_clusters=4)
+
+        # Categorize clusters
+        categorizer = CategorizerAgent(api_key=openai_api_key)
+        profiles = categorizer.categorize_clusters()
+
+        # Apply PCA for visualization
         valid_embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
         if len(valid_embeddings) < 2:
             st.warning("⚠️ Not enough valid embeddings for clustering.")
@@ -239,10 +261,25 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
         # Transform founder embedding
         founder_2d = pca.transform([founder_embedding])[0]
 
-        # Generate dimension labels
+        # Generate intuitive dimension labels
         dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
-        dim_agent.generate_axis_labels()
-        labels = dim_agent.load_dimension_labels()
+        dim_labels = {
+            "x_label": "Investment Stage Focus",
+            "y_label": "Sector Preference",
+            "x_description": "Distinguishes VCs by their focus on early-stage vs. growth-stage startups.",
+            "y_description": "Separates VCs by their preference for technology-driven vs. non-tech sectors.",
+            "x_variance": pca.explained_variance_ratio_[0],
+            "y_variance": pca.explained_variance_ratio_[1],
+        }
+        try:
+            # Assume DimensionExplainerAgent uses a prompt to generate intuitive labels
+            dim_agent.generate_axis_labels()
+            loaded_labels = dim_agent.load_dimension_labels()
+            dim_labels.update(loaded_labels)
+            dim_labels["x_variance"] = pca.explained_variance_ratio_[0]
+            dim_labels["y_variance"] = pca.explained_variance_ratio_[1]
+        except Exception as e:
+            st.warning(f"⚠️ Error generating dimension labels: {str(e)}")
 
         # Generate cluster map
         viz_agent = VisualizationAgent(api_key=openai_api_key)
@@ -250,22 +287,59 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             profiles=profiles,
             coords_2d=coords,
             pca=pca,
+            dimension_labels=dim_labels,
             founder_embedding_2d=founder_2d,
             founder_cluster_id=None,
             top_match_names=[m["url"].strip().lower() for m in top_matches],
-            dimension_labels=labels
         )
+
+        # Generate category narratives
+        client = openai.OpenAI(api_key=openai_api_key)
+        category_narratives = {}
+        unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
+        for category in unique_categories:
+            category_profiles = [p for p in profiles if p.get("category") == category]
+            rationale = category_profiles[0].get("category_rationale", "No rationale provided.") if category_profiles else ""
+            prompt = f"""
+You are a senior VC analyst creating a narrative for a group of venture capital firms in the '{category}' category.
+
+Input:
+- Category Rationale: {rationale}
+- Sample VCs: {[p['name'] for p in category_profiles[:3]]}
+
+Your task is to write a concise narrative (2–3 sentences) describing what makes this category unique. Focus on their investment thesis, portfolio focus, or cultural mindset. Use founder-friendly language to help startups understand this group.
+
+Format:
+{narrative}
+"""
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a clear and insightful VC analyst."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=150
+                )
+                category_narratives[category] = response.choices[0].message.content.strip()
+            except Exception as e:
+                category_narratives[category] = f"(Narrative generation failed: {str(e)})"
 
         # Display visualization
         st.subheader("📊 VC Landscape Visualization")
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', '')}")
-        st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', '')}")
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
+            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
 
-        if 'descriptions_markdown' in labels:
+            # Display category narratives
             st.subheader("📚 VC Category Descriptions")
-            for block in labels['descriptions_markdown'].split("\n"):
-                if block.strip():
-                    st.markdown(f"🔹 {block}")
+            for category in unique_categories:
+                narrative = category_narratives.get(category, "No narrative available.")
+                st.markdown(f"**{category}**: {narrative}")
+                st.markdown("---")
+        else:
+            st.warning("⚠️ Failed to generate visualization.")
     except Exception as e:
         st.error(f"❌ Error during clustering/visualization: {str(e)}")
