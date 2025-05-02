@@ -226,7 +226,7 @@ if vc_csv and founder_embedding:
                     # Validate profile before saving
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
                     if not all(key in profile and profile[key] for key in required_fields) or not isinstance(profile["strategy_summary"], str) or not profile["strategy_summary"].strip():
-                        st.error(f"❌ Profile invalid: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]] or empty strategy_summary}")
+                        st.error(f"❌ Profile invalid: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or empty strategy_summary")
                         continue
 
                     st.write(f"📋 Profile data: name={profile['name']}, url={profile['url']}, strategy_summary_length={len(profile['strategy_summary'])} chars")
