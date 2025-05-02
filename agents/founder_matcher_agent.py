@@ -1,20 +1,13 @@
-
-import os
-import sys
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-
-# Ensure the root project path is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from agents.base_agent import BaseAgent
+  # fixed to use absolute import
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
-class FounderMatcherAgent(BaseAgent):
+class FounderMatcherAgent:
     def __init__(self, founder_embedding):
-        super().__init__()
+        
         self.founder_embedding = founder_embedding
 
     def load_profiles(self):
