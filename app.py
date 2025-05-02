@@ -182,18 +182,21 @@ if vc_csv and founder_embedding:
                     )
                     st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
+                    # Generate strategy summary
                     try:
                         st.write(f"🧠 Interpreting strategy for {url}...")
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
                         st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
                         if not summary or not isinstance(summary, str) or not summary.strip():
+                            st.warning(f"⚠️ Empty strategy summary for {url}. Using fallback.")
                             summary = f"Default summary: Unable to generate detailed strategy for {url} based on available data."
                     except Exception as e:
-                        st.error(f"❌ Failed to generate strategy summary: {str(e)}")
+                        st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
                         summary = f"Default summary: Unable to analyze {url} due to error: {str(e)}"
 
+                    # Early validation of strategy_summary
                     if not isinstance(summary, str) or not summary.strip():
-                        st.error(f"❌ Invalid strategy summary (got: {summary}). Skipping profile.")
+                        st.error(f"❌ Invalid strategy summary for {url} (got: {summary}). Skipping profile.")
                         continue
 
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
@@ -204,7 +207,7 @@ if vc_csv and founder_embedding:
                     vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
 
                     if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
-                        st.error(f"❌ Invalid embedding: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
+                        st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
                         continue
 
                     profile = {
@@ -226,7 +229,7 @@ if vc_csv and founder_embedding:
                     # Validate profile before saving
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
                     if not all(key in profile and profile[key] for key in required_fields) or not isinstance(profile["strategy_summary"], str) or not profile["strategy_summary"].strip():
-                        st.error(f"❌ Profile invalid: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or empty strategy_summary")
+                        st.error(f"❌ Profile invalid for {url}: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or empty strategy_summary")
                         continue
 
                     st.write(f"📋 Profile data: name={profile['name']}, url={profile['url']}, strategy_summary_length={len(profile['strategy_summary'])} chars")
@@ -234,7 +237,7 @@ if vc_csv and founder_embedding:
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
                     all_profiles.append(profile)
                     save_vc_profiles(all_profiles)
-                    st.success("✅ Profile saved.")
+                    st.success(f"✅ Profile saved for {url}.")
                     processed_urls += 1
                 except Exception as e:
                     st.error(f"❌ Error processing {url}: {str(e)}")
@@ -380,7 +383,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
         founder_2d = None
         try:
             founder_2d = pca.transform([founder_embedding])[0]
-        except ValueError as e:
+        except Exception as e:
             st.error(f"❌ PCA transformation failed: {str(e)}. Please upload a new CSV to reset VC profiles.")
             st.stop()
 
@@ -406,15 +409,19 @@ This VC specializes in [area]. It is a strong match for your business because [d
         # Generate cluster map
         if founder_2d is not None:
             viz_agent = VisualizationAgent(api_key=openai_api_key)
-            fig, labels = viz_agent.generate_cluster_map(
-                profiles=profiles,
-                coords_2d=coords,
-                pca=pca,
-                dimension_labels=dim_labels,
-                founder_embedding_2d=founder_2d,
-                founder_cluster_id=None,
-                top_match_names=top_vc_urls,
-            )
+            try:
+                fig, labels = viz_agent.generate_cluster_map(
+                    profiles=profiles,
+                    coords_2d=coords,
+                    pca=pca,
+                    dimension_labels=dim_labels,
+                    founder_embedding_2d=founder_2d,
+                    founder_cluster_id=None,
+                    top_match_names=top_vc_urls,
+                )
+            except Exception as e:
+                st.error(f"❌ Visualization failed: {str(e)}")
+                fig = None
 
             # Generate category narratives
             category_narratives = {}
