@@ -238,9 +238,16 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             st.warning("⚠️ No valid VC profiles found for clustering.")
             st.stop()
 
+        # Validate number of profiles for clustering
+        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list)]
+        if len(valid_profiles) < 2:
+            st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for clustering and visualization.")
+            st.stop()
+
         # Apply K-means clustering
         clustering_agent = ClusterInterpreterAgent(api_key=openai_api_key)
-        profiles = clustering_agent.assign_kmeans_clusters(n_clusters=4)
+        n_clusters = min(len(valid_profiles), 4)  # Ensure n_clusters <= n_samples
+        profiles = clustering_agent.assign_kmeans_clusters(n_clusters=n_clusters)
 
         # Categorize clusters
         categorizer = CategorizerAgent(api_key=openai_api_key)
