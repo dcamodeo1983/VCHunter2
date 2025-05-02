@@ -184,15 +184,11 @@ if vc_csv and founder_embedding:
 
                     # Generate strategy summary
                     try:
-                        st.write(f"🧠 Interpreting strategy for {url}...")
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
                         st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
-                        if not summary or not isinstance(summary, str) or not summary.strip():
-                            st.warning(f"⚠️ Empty strategy summary for {url}. Using fallback.")
-                            summary = f"Default summary: Unable to generate detailed strategy for {url} based on available data."
                     except Exception as e:
                         st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
-                        summary = f"Default summary: Unable to analyze {url} due to error: {str(e)}"
+                        summary = f"Category: Generalist\nRationale: Unable to analyze {url} due to error: {str(e)}. The firm’s strategy could not be determined.\nMotivational Signals: none"
 
                     # Early validation of strategy_summary
                     if not isinstance(summary, str) or not summary.strip():
@@ -201,13 +197,22 @@ if vc_csv and founder_embedding:
 
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
 
-                    tagger = StrategicTaggerAgent(api_key=openai_api_key)
-                    tag_data = tagger.generate_tags_and_signals(summary)
+                    # Generate tags and signals
+                    try:
+                        tagger = StrategicTaggerAgent(api_key=openai_api_key)
+                        tag_data = tagger.generate_tags_and_signals(summary)
+                    except Exception as e:
+                        st.error(f"❌ Failed to generate tags for {url}: {str(e)}")
+                        tag_data = {"tags": [], "motivational_signals": []}
 
-                    vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
-
-                    if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
-                        st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
+                    # Generate embedding
+                    try:
+                        vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
+                        if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
+                            st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
+                            continue
+                    except Exception as e:
+                        st.error(f"❌ Failed to generate embedding for {url}: {str(e)}")
                         continue
 
                     profile = {
@@ -369,7 +374,12 @@ This VC specializes in [area]. It is a strong match for your business because [d
         # Apply PCA for visualization
         valid_embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
         pca = PCA(n_components=2)
-        coords = pca.fit_transform(valid_embeddings)
+        try:
+            coords = pca.fit_transform(valid_embeddings)
+        except Exception as e:
+            st.error(f"❌ PCA fit failed: {str(e)}")
+            st.stop()
+
         for i, p in enumerate(profiles):
             p["pca_x"], p["pca_y"] = float(coords[i][0]), float(coords[i][1])
         save_vc_profiles(profiles)
@@ -409,6 +419,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
         # Generate cluster map
         if founder_2d is not None:
             viz_agent = VisualizationAgent(api_key=openai_api_key)
+            fig = None
             try:
                 fig, labels = viz_agent.generate_cluster_map(
                     profiles=profiles,
@@ -421,7 +432,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
                 )
             except Exception as e:
                 st.error(f"❌ Visualization failed: {str(e)}")
-                fig = None
+                st.stop()
 
             # Generate category narratives
             category_narratives = {}
