@@ -12,39 +12,45 @@ class PortfolioEnricherAgent:
             soup = BeautifulSoup(html, "html.parser")
             entries = []
 
-            blocks = soup.find_all(["div", "li", "article", "section", "tr"])
+            blocks = soup.find_all(["div", "li", "article", "section", "tr", "td"])
             for block in blocks:
                 text = block.get_text(separator=" ", strip=True)
                 if not text or len(text) < 10:
                     continue
 
                 name_candidates = block.find_all(
-                    ["h2", "h3", "h4", "strong", "span", "div"],
-                    class_=[re.compile("company.*", re.I), re.compile("name.*", re.I)]
+                    ["h2", "h3", "h4", "strong", "span", "div", "a"],
+                    class_=[re.compile("company.*", re.I), re.compile("name.*", re.I), re.compile("title.*", re.I)]
                 )
                 name = None
                 for candidate in name_candidates:
                     candidate_text = candidate.get_text(strip=True)
-                    if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 5:
+                    if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 6:
                         name = candidate_text
                         break
 
                 if not name:
-                    name_tags = block.find_all(["h2", "h3", "h4", "strong"])
+                    name_tags = block.find_all(["h2", "h3", "h4", "strong", "a"])
                     for tag in name_tags:
                         candidate_text = tag.get_text(strip=True)
-                        if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 5:
+                        if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 6:
                             name = candidate_text
                             break
 
+                if not name:
+                    words = text.split()
+                    if len(words) <= 6 and any(c.isalpha() for c in text):
+                        name = text.strip()
+
                 if name:
                     description = re.sub(r"\s+", " ", text.replace(name, "").strip())
-                    if len(description) > 10:
-                        entries.append({
-                            "name": name,
-                            "description": description,
-                            "source_html": text
-                        })
+                    if not description or len(description) < 10:
+                        description = text.strip()
+                    entries.append({
+                        "name": name,
+                        "description": description,
+                        "source_html": text
+                    })
 
             return entries
         except Exception as e:
@@ -56,7 +62,7 @@ class PortfolioEnricherAgent:
         for url in urls:
             try:
                 st.write(f"🌐 Fetching portfolio page: {url}")
-                response = self.scraper.get(url, timeout=10)
+                response = self.scraper.get(url, timeout=15)
                 response.raise_for_status()
                 html = response.text
                 entries = self.extract_portfolio_entries(html)
