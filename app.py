@@ -36,6 +36,8 @@ def load_vc_profiles(expected_dim=1536):
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: invalid embedding (got {len(p.get('embedding', []))} dimensions)")
                 elif not isinstance(p.get("strategy_summary"), str) or not p["strategy_summary"].strip():
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty strategy_summary")
+                elif not isinstance(p.get("url"), str) or not p["url"].strip():
+                    invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty url")
                 else:
                     valid_profiles.append(p)
             if invalid_reasons:
@@ -54,6 +56,10 @@ def save_vc_profiles(profiles):
     if not profiles:
         st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
+    for p in profiles:
+        if not all(key in p for key in ["name", "url", "embedding", "strategy_summary"]):
+            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields.")
+            return
     try:
         with open(VC_PROFILE_PATH, "w") as f:
             json.dump(profiles, f, indent=2)
@@ -159,14 +165,17 @@ if vc_csv and founder_embedding:
                     interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
 
                     vc_text = scraper.scrape_text(url)
+                    st.write(f"📄 Scraped text length for {url}: {len(vc_text)} chars")
                     links = scraper.find_portfolio_links(url)
                     portfolio = (
                         enricher.extract_portfolio_entries_from_pages(links)
                         if links else enricher.extract_portfolio_entries(vc_text)
                     )
+                    st.write(f"📈 Portfolio size for {url}: {len(portfolio)} companies")
 
                     try:
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
+                        st.write(f"🧠 Strategy summary for {url}: {summary[:100]}...")
                     except Exception as e:
                         st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
                         summary = f"Unable to generate strategy summary due to error: {str(e)}"
@@ -202,6 +211,12 @@ if vc_csv and founder_embedding:
                         "pca_y": None,
                     }
 
+                    # Validate profile before saving
+                    required_fields = ["name", "url", "embedding", "strategy_summary"]
+                    if not all(key in profile and profile[key] for key in required_fields):
+                        st.error(f"❌ Profile for {url} missing required fields: {[k for k in required_fields if k not in profile or not profile[k]]}. Skipping.")
+                        continue
+
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
                     all_profiles.append(profile)
                     save_vc_profiles(all_profiles)
@@ -212,17 +227,17 @@ if vc_csv and founder_embedding:
     except Exception as e:
         st.error(f"❌ Error reading CSV: {str(e)}")
 
-    # Matching, clustering, categorization, and visualization
+    # Matching and display
     try:
         profiles = load_vc_profiles(expected_dim=1536)
         if not profiles:
             st.warning("⚠️ No valid VC profiles found. Please ensure CSV processing completed successfully.")
             st.stop()
 
-        # Validate number of profiles for clustering
+        # Validate number of profiles for matching
         valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list)]
-        if len(valid_profiles) < 2:
-            st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for matching and visualization.")
+        if len(valid_profiles) < 1:
+            st.warning("⚠️ At least 1 valid VC profile with embeddings is required for matching.")
             st.stop()
 
         # Match founder to VCs
@@ -236,9 +251,11 @@ if vc_csv and founder_embedding:
             top_matches = []
             top_vc_urls = []
 
-        # Generate robust rationale for each match
-        for match in top_matches:
-            prompt = f"""
+        # Generate and display matches
+        if top_matches:
+            st.subheader("🎯 Top 5 VC Matches")
+            for match in top_matches:
+                prompt = f"""
 You are a senior VC advisor helping a startup founder find the best venture capital firms for their company.
 
 Founder Profile:
@@ -257,23 +274,21 @@ Respond in this format:
 **Why {match['name']} is a Match**:
 This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
 """
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a precise and insightful VC advisor."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.7,
-                    max_tokens=200
-                )
-                match['rationale'] = response.choices[0].message.content.strip()
-            except Exception as e:
-                match['rationale'] = f"(Rationale generation failed: {str(e)})"
-                st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a precise and insightful VC advisor."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.7,
+                        max_tokens=200
+                    )
+                    match['rationale'] = response.choices[0].message.content.strip()
+                except Exception as e:
+                    match['rationale'] = f"(Rationale generation failed: {str(e)})"
+                    st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
 
-        if top_matches:
-            st.subheader("🎯 Top 5 VC Matches")
             st.dataframe(
                 pd.DataFrame([
                     {
@@ -294,6 +309,16 @@ This VC specializes in [area]. It is a strong match for your business because [d
                     st.markdown("---")
         else:
             st.warning("⚠️ No VC matches found. Please ensure valid VC profiles were generated from the CSV.")
+
+    except KeyError as e:
+        st.error(f"❌ Profile data error in matching: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
+        st.stop()
+
+    # Clustering, categorization, and visualization
+    try:
+        if len(valid_profiles) < 2:
+            st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for clustering and visualization.")
+            st.stop()
 
         # Apply K-means clustering
         clustering_agent = ClusterInterpreterAgent(api_key=openai_api_key)
@@ -402,9 +427,9 @@ Return the narrative directly as plain text.
         else:
             st.warning("⚠️ Failed to generate visualization.")
     except KeyError as e:
-        st.error(f"❌ Profile data error: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
+        st.error(f"❌ Profile data error in clustering/visualization: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
     except Exception as e:
-        st.error(f"❌ Error during matching/clustering/visualization: {str(e)}")
+        st.error(f"❌ Error during clustering/visualization: {str(e)}")
 else:
     if founder_embedding:
         st.info("ℹ️ Please upload a CSV with VC URLs to generate matches and visualization.")
