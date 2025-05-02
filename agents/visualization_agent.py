@@ -57,10 +57,11 @@ class VisualizationAgent:
 
         dim_labels = dimension_labels or self.load_dimension_labels()
         top_match_names = top_match_names or []
-        normalized_top_names = [name.strip().lower() for name in top_match_names]
+        normalized_top_urls = [url.strip().lower() for url in top_match_names]
 
         df = pd.DataFrame({
             "VC Name": [p.get("name") for p in profiles],
+            "URL": [p.get("url", "") for p in profiles],
             "Category": [p.get("category", "Uncategorized") for p in profiles],
             "X": [p["pca_x"] for p in profiles],
             "Y": [p["pca_y"] for p in profiles],
@@ -75,12 +76,12 @@ class VisualizationAgent:
         }
         df["Color"] = df["Category"].map(category_color_map)
 
-        df["Normalized VC Name"] = df["VC Name"].str.strip().str.lower()
-        df["Symbol"] = df["Normalized VC Name"].apply(
-            lambda name: "star" if name in normalized_top_names else "circle"
+        df["Normalized URL"] = df["URL"].str.strip().str.lower()
+        df["Symbol"] = df["Normalized URL"].apply(
+            lambda url: "star" if url in normalized_top_urls else "circle"
         )
-        df["Size"] = df["Normalized VC Name"].apply(
-            lambda name: 12 if name in normalized_top_names else 7
+        df["Size"] = df["Normalized URL"].apply(
+            lambda url: 12 if url in normalized_top_urls else 7
         )
 
         fig = px.scatter(
