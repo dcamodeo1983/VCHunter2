@@ -309,8 +309,7 @@ Input:
 
 Your task is to write a concise narrative (2–3 sentences) describing what makes this category unique. Focus on their investment thesis, portfolio focus, or cultural mindset. Use founder-friendly language to help startups understand this group.
 
-Format:
-{narrative}
+Return the narrative directly as plain text.
 """
             try:
                 response = client.chat.completions.create(
