@@ -149,7 +149,7 @@ Explain why this VC is a strong match. Respond in this format:
                     st.warning(f"Rationale generation error: {str(e)}")
 
             if top_matches:
-                top_vc_names = [match['name'].strip().lower() for match in top_matches]
+                top_vc_names = [match['url'].strip().lower() for match in top_matches]
                 # Display summary table
                 match_df = pd.DataFrame([{
                     "VC Name": m["name"],
@@ -163,12 +163,7 @@ Explain why this VC is a strong match. Respond in this format:
                 with st.expander("📝 Full Justifications for Top Matches"):
                     st.markdown("Each firm below is matched to your concept with a tailored rationale:")
 
-                    for match in top_matches:
-                        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                        st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
-                        rationale = match.get('rationale') or 'No strategy available.'
-                        st.markdown(f"**Why this VC is a match:**\n\n> {rationale}")
-                        st.markdown("---")
+                    # (Removed duplicated detailed top match display block)
 
                 for match in top_matches:
                     st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
