@@ -2,20 +2,25 @@
   {
     "name": "a16z.com",
     "url": "https://a16z.com",
-    "embedding": [0.123, 0.456, ...],
-    "portfolio_size": 18,
-    "strategy_summary": "We invest in bold founders...",
-    "strategic_tags": ["AI", "Infrastructure"],
-    "motivational_signals": ["Breakthrough Tech", "Experienced Founders"],
+    "embedding": [0.12, 0.34, 0.56, 0.78, 0.90],
+    "portfolio_size": 25,
+    "strategy_summary": "Invests in bold, technical founders building generational companies in software, AI, and infrastructure.",
+    "strategic_tags": ["AI", "Infrastructure", "Cloud"],
+    "motivational_signals": ["Technical Founders", "Scalable Platforms"],
     "category": "AI Frontier",
     "cluster_id": 0,
-    "coordinates": [1.23, 4.56]
+    "coordinates": [1.1, 2.3]
   },
   {
-    "name": "luxcapital.com",
-    "url": "https://luxcapital.com",
-    "embedding": [...],
-    ...
+    "name": "foundersfund.com",
+    "url": "https://foundersfund.com",
+    "embedding": [0.11, 0.29, 0.48, 0.72, 0.95],
+    "portfolio_size": 18,
+    "strategy_summary": "Focuses on companies with world-changing ambitions, particularly in aerospace, biotech, and frontier tech.",
+    "strategic_tags": ["Frontier Tech", "Moonshots"],
+    "motivational_signals": ["Big Vision", "Market Disruption"],
+    "category": "Hard Tech Builders",
+    "cluster_id": 1,
+    "coordinates": [2.2, 1.9]
   }
 ]
-
