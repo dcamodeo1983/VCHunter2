@@ -1,8 +1,14 @@
 
+import os
+import sys
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from .base_agent import BaseAgent  # switched to relative import
+
+# Ensure the root project path is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from agents.base_agent import BaseAgent
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
