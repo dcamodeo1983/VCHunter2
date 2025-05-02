@@ -183,12 +183,8 @@ if vc_csv and founder_embedding:
                     st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
                     # Generate strategy summary
-                    try:
-                        summary = interpreter.interpret_strategy(url, vc_text, portfolio)
-                        st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
-                    except Exception as e:
-                        st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
-                        summary = f"Category: Generalist\nRationale: Unable to analyze {url} due to error: {str(e)}. The firm’s strategy could not be determined.\nMotivational Signals: none"
+                    summary = interpreter.interpret_strategy(url, vc_text, portfolio)
+                    st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
 
                     # Early validation of strategy_summary
                     if not isinstance(summary, str) or not summary.strip():
@@ -198,21 +194,13 @@ if vc_csv and founder_embedding:
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
 
                     # Generate tags and signals
-                    try:
-                        tagger = StrategicTaggerAgent(api_key=openai_api_key)
-                        tag_data = tagger.generate_tags_and_signals(summary)
-                    except Exception as e:
-                        st.error(f"❌ Failed to generate tags for {url}: {str(e)}")
-                        tag_data = {"tags": [], "motivational_signals": []}
+                    tagger = StrategicTaggerAgent(api_key=openai_api_key)
+                    tag_data = tagger.generate_tags_and_signals(summary)
 
                     # Generate embedding
-                    try:
-                        vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
-                        if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
-                            st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
-                            continue
-                    except Exception as e:
-                        st.error(f"❌ Failed to generate embedding for {url}: {str(e)}")
+                    vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
+                    if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
+                        st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
                         continue
 
                     profile = {
@@ -394,7 +382,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
         try:
             founder_2d = pca.transform([founder_embedding])[0]
         except Exception as e:
-            st.error(f"❌ PCA transformation failed: {str(e)}. Please upload a new CSV to reset VC profiles.")
+            st.error(f"❌ PCA transformation failed: {str(e)}. Skipping visualization.")
             st.stop()
 
         # Generate intuitive dimension labels
@@ -417,30 +405,30 @@ This VC specializes in [area]. It is a strong match for your business because [d
             st.warning(f"⚠️ Error generating dimension labels: {str(e)}. Using default labels.")
 
         # Generate cluster map
-        if founder_2d is not None:
-            viz_agent = VisualizationAgent(api_key=openai_api_key)
-            fig = None
-            try:
-                fig, labels = viz_agent.generate_cluster_map(
-                    profiles=profiles,
-                    coords_2d=coords,
-                    pca=pca,
-                    dimension_labels=dim_labels,
-                    founder_embedding_2d=founder_2d,
-                    founder_cluster_id=None,
-                    top_match_names=top_vc_urls,
-                )
-            except Exception as e:
-                st.error(f"❌ Visualization failed: {str(e)}")
-                st.stop()
+        viz_agent = VisualizationAgent(api_key=openai_api_key)
+        fig = None
+        labels = dim_labels
+        try:
+            fig, labels = viz_agent.generate_cluster_map(
+                profiles=profiles,
+                coords_2d=coords,
+                pca=pca,
+                dimension_labels=dim_labels,
+                founder_embedding_2d=founder_2d,
+                founder_cluster_id=None,
+                top_match_names=top_vc_urls,
+            )
+        except Exception as e:
+            st.error(f"❌ Visualization failed: {str(e)}")
+            st.stop()
 
-            # Generate category narratives
-            category_narratives = {}
-            unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
-            for category in unique_categories:
-                category_profiles = [p for p in profiles if p.get("category") == category]
-                rationale = category_profiles[0].get("category_rationale", "No rationale provided.") if category_profiles else ""
-                prompt = f"""
+        # Generate category narratives
+        category_narratives = {}
+        unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
+        for category in unique_categories:
+            category_profiles = [p for p in profiles if p.get("category") == category]
+            rationale = category_profiles[0].get("category_rationale", "No rationale provided.") if category_profiles else ""
+            prompt = f"""
 You are a senior VC analyst creating a narrative for a group of venture capital firms in the '{category}' category.
 
 Input:
@@ -451,37 +439,35 @@ Your task is to write a concise narrative (2–3 sentences) describing what make
 
 Return the narrative directly as plain text.
 """
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4",
-                        messages=[
-                            {"role": "system", "content": "You are a clear and insightful VC analyst."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.7,
-                        max_tokens=150
-                    )
-                    category_narratives[category] = response.choices[0].message.content.strip()
-                except Exception as e:
-                    category_narratives[category] = f"(Narrative generation failed: {str(e)})"
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a clear and insightful VC analyst."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=150
+                )
+                category_narratives[category] = response.choices[0].message.content.strip()
+            except Exception as e:
+                category_narratives[category] = f"(Narrative generation failed: {str(e)})"
 
-            # Display visualization
-            st.subheader("📊 VC Landscape Visualization")
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
-                st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
-                st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
+        # Display visualization
+        st.subheader("📊 VC Landscape Visualization")
+        if fig and founder_2d is not None:
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
+            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
 
-                # Display category narratives
-                st.subheader("📚 VC Category Descriptions")
-                for category in unique_categories:
-                    narrative = category_narratives.get(category, "No narrative available.")
-                    st.markdown(f"**{category}**: {narrative}")
-                    st.markdown("---")
-            else:
-                st.warning("⚠️ Failed to generate visualization.")
+            # Display category narratives
+            st.subheader("📚 VC Category Descriptions")
+            for category in unique_categories:
+                narrative = category_narratives.get(category, "No narrative available.")
+                st.markdown(f"**{category}**: {narrative}")
+                st.markdown("---")
         else:
-            st.error("❌ Visualization skipped: Founder embedding transformation failed.")
+            st.warning("⚠️ Failed to generate visualization due to missing founder embedding or plot data.")
     except Exception as e:
         st.error(f"❌ Error during clustering/visualization: {str(e)}")
 else:
