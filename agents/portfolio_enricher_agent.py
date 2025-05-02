@@ -1,42 +1,68 @@
-import requests
+import streamlit as st
+import cloudscraper
 from bs4 import BeautifulSoup
+import re
 
 class PortfolioEnricherAgent:
     def __init__(self):
-        self.session = requests.Session()
-        self.headers = {"User-Agent": "Mozilla/5.0"}
+        self.scraper = cloudscraper.create_scraper()
 
     def extract_portfolio_entries(self, html):
-        soup = BeautifulSoup(html, "html.parser")
-        entries = []
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            entries = []
 
-        blocks = soup.find_all(["div", "li", "article", "section"])
-        for block in blocks:
-            text = block.get_text(separator=" ", strip=True)
-            if not text or len(text) < 20 or len(text.split()) > 60:
-                continue
+            blocks = soup.find_all(["div", "li", "article", "section", "tr"])
+            for block in blocks:
+                text = block.get_text(separator=" ", strip=True)
+                if not text or len(text) < 10:
+                    continue
 
-            name_candidate = block.find(["h2", "h3", "strong"])
-            name = name_candidate.get_text(strip=True) if name_candidate else None
+                name_candidates = block.find_all(
+                    ["h2", "h3", "h4", "strong", "span", "div"],
+                    class_=[re.compile("company.*", re.I), re.compile("name.*", re.I)]
+                )
+                name = None
+                for candidate in name_candidates:
+                    candidate_text = candidate.get_text(strip=True)
+                    if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 5:
+                        name = candidate_text
+                        break
 
-            if name and any(c.isalpha() for c in name):
-                entries.append({
-                    "name": name,
-                    "description": text.replace(name, "").strip(),
-                    "source_html": text
-                })
+                if not name:
+                    name_tags = block.find_all(["h2", "h3", "h4", "strong"])
+                    for tag in name_tags:
+                        candidate_text = tag.get_text(strip=True)
+                        if candidate_text and any(c.isalpha() for c in candidate_text) and len(candidate_text.split()) <= 5:
+                            name = candidate_text
+                            break
 
-        return entries
+                if name:
+                    description = re.sub(r"\s+", " ", text.replace(name, "").strip())
+                    if len(description) > 10:
+                        entries.append({
+                            "name": name,
+                            "description": description,
+                            "source_html": text
+                        })
+
+            return entries
+        except Exception as e:
+            st.error(f"❌ Error extracting portfolio entries: {str(e)}")
+            return []
 
     def extract_portfolio_entries_from_pages(self, urls):
         all_entries = []
         for url in urls:
             try:
-                response = self.session.get(url, headers=self.headers, timeout=10)
+                st.write(f"🌐 Fetching portfolio page: {url}")
+                response = self.scraper.get(url, timeout=10)
                 response.raise_for_status()
                 html = response.text
                 entries = self.extract_portfolio_entries(html)
                 all_entries.extend(entries)
-            except Exception:
+                st.write(f"📈 Extracted {len(entries)} portfolio entries from {url}")
+            except Exception as e:
+                st.error(f"❌ Error processing portfolio page {url}: {str(e)}")
                 continue
         return all_entries
