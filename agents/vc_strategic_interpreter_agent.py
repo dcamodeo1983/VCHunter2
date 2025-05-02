@@ -10,7 +10,7 @@ class VCStrategicInterpreterAgent:
         try:
             cleaned_site_text = re.sub(r"\s+", " ", site_text).strip() if site_text else ""
             if not cleaned_site_text or len(cleaned_site_text.split()) < 100:
-                st.warning(f"⚠️ Insufficient website text for {vc_name} ({len(cleaned_site_text.split())} words). Using fallback.")
+                st.warning(f"⚠️ Insufficient website text for {vc_name} ({len(cleaned_site_text.split())} words): '{cleaned_site_text[:100]}...'. Using fallback.")
                 return f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to insufficient website data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
 
             formatted_entries = "\n".join(
@@ -20,6 +20,7 @@ class VCStrategicInterpreterAgent:
                 st.warning(f"⚠️ No valid portfolio entries for {vc_name}.")
                 formatted_entries = "No portfolio data available."
 
+            st.write(f"📝 Input for {vc_name}: site_text={len(cleaned_site_text)} chars, portfolio_entries={len(portfolio_entries)}")
             prompt = f"""
 You are a senior venture capital analyst tasked with interpreting a VC firm’s strategic thesis.
 
@@ -43,7 +44,6 @@ Category: <Short high-level label>
 Rationale: <3–5 sentences on their investing personality and thesis>
 Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-stage SaaS, national resilience>
 """
-            st.write(f"📝 Sending prompt for {vc_name} (site_text={len(cleaned_site_text)} chars, portfolio_entries={len(formatted_entries)} chars)")
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
@@ -53,13 +53,13 @@ Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-
             summary = response.choices[0].message.content.strip()
             cleaned_summary = re.sub(r"\s+", " ", summary).strip() if summary else ""
 
-            if not cleaned_summary or len(cleaned_summary.split()) < 20:
-                st.warning(f"⚠️ Empty or insufficient strategy summary for {vc_name} ({len(cleaned_summary.split())} words). Using fallback.")
+            if not cleaned_summary or len(cleaned_summary.split()) < 30:
+                st.warning(f"⚠️ Empty or insufficient strategy summary for {vc_name} ({len(cleaned_summary.split())} words): '{cleaned_summary[:100]}...'. Using fallback.")
                 summary = f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to limited or ambiguous website and portfolio data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
             else:
                 summary = cleaned_summary
 
-            st.write(f"📝 Received summary for {vc_name}: {summary[:100] if summary else 'None'}...")
+            st.write(f"📝 Summary for {vc_name}: {summary[:100] if summary else 'None'}...")
             return summary
 
         except Exception as e:
