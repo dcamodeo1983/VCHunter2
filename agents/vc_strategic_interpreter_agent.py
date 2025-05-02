@@ -7,10 +7,18 @@ class VCStrategicInterpreterAgent:
 
     def interpret_strategy(self, vc_name, site_text, portfolio_entries):
         try:
+            # Validate inputs
+            if not site_text or not site_text.strip():
+                st.warning(f"⚠️ No valid website text for {vc_name}. Using fallback.")
+                return f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to missing website data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
+
             formatted_entries = "\n".join(
                 [f"- {entry['name']}: {entry['description']}" for entry in portfolio_entries if entry.get('name') and entry.get('description')]
             )
-            
+            if not formatted_entries.strip():
+                st.warning(f"⚠️ No valid portfolio entries for {vc_name}.")
+                formatted_entries = "No portfolio data available."
+
             prompt = f"""
 You are a senior venture capital analyst tasked with interpreting a VC firm’s strategic thesis.
 
@@ -42,12 +50,13 @@ Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-
                 max_tokens=750
             )
             summary = response.choices[0].message.content.strip()
-            st.write(f"📝 Received summary for {vc_name}: {summary[:100] if summary else 'None'}...")
             
+            # Validate summary
             if not summary or not isinstance(summary, str) or not summary.strip():
                 st.warning(f"⚠️ Empty strategy summary for {vc_name}. Using fallback.")
                 summary = f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to limited or ambiguous website and portfolio data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
             
+            st.write(f"📝 Received summary for {vc_name}: {summary[:100] if summary else 'None'}...")
             return summary
 
         except Exception as e:
