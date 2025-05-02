@@ -1,3 +1,4 @@
+
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -103,14 +104,12 @@ class VisualizationAgent:
         )
 
         fig.update_traces(
-            hovertemplate="<br>".join(
-                [
-                    "<b>%{customdata[0]}</b>",
-                    "Category: %{customdata[1]}",
-                    "Focus: %{customdata[2]}",
-                    "Signals: %{customdata[3]}",
-                ]
-            )
+            hovertemplate="<br>".join([
+                "<b>%{customdata[0]}</b>",
+                "Category: %{customdata[1]}",
+                "Focus: %{customdata[2]}",
+                "Signals: %{customdata[3]}"
+            ])
         )
 
         if founder_embedding_2d is not None:
