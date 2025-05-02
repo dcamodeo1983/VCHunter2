@@ -1,4 +1,3 @@
-
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -13,7 +12,7 @@ CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
 class VisualizationAgent:
     def __init__(self, api_key=None):
         self.api_key = api_key
-        self.color_palette = px.colors.qualitative.Safe
+        self.color_palette = px.colors.qualitative.Bold  # Changed to Bold for high contrast
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
@@ -23,7 +22,7 @@ class VisualizationAgent:
 
     def load_dimension_labels(self):
         if os.path.exists(DIMENSION_LABELS_PATH):
-            with open(DIMENSION_LABELS_PATH, "r") as f:
+            with open( DIMENSION_LABELS_PATH, "r") as f:
                 return json.load(f)
         return {
             "x_label": "PC1",
@@ -132,7 +131,6 @@ class VisualizationAgent:
         cluster_sizes = Counter(df["Category"])
         cluster_descriptions = self.load_cluster_descriptions()
         sorted_descriptions = sorted(cluster_descriptions.items(), key=lambda x: cluster_sizes.get(x[0], 0))
-
         description_block = "\n".join([f"**{cat}**: {desc}" for cat, desc in sorted_descriptions])
 
         return fig, {**dim_labels, "descriptions_markdown": description_block}
