@@ -1,3 +1,4 @@
+
 import json
 import os
 import openai
@@ -24,20 +25,18 @@ class DimensionExplainerAgent:
 
         X = np.array(embeddings)
         pca = PCA(n_components=2)
-        pca.fit(X)
+        X_transformed = pca.fit_transform(X)
         explained_variance = pca.explained_variance_ratio_
 
         prompt = f"""
-You are reviewing the results of a PCA that reduced a set of venture capital firm embeddings into two components.
-
-The PCA analysis is based on detailed investment theses, portfolio behavior, and firm strategy.
+You are analyzing principal component axes from a PCA projection of venture capital firm embeddings.
 
 Component 1 explains {explained_variance[0]*100:.2f}% of the variance.
 Component 2 explains {explained_variance[1]*100:.2f}% of the variance.
 
-Explain what each axis might represent in terms of investment behavior and strategy, based on how firms are spread across it.
+These embeddings represent VC strategies and investment theses.
 
-Return JSON with:
+Generate a JSON with:
 - x_label
 - y_label
 - x_description
@@ -48,30 +47,28 @@ Return JSON with:
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-                max_tokens=500,
+                temperature=0.5
             )
             content = response.choices[0].message.content.strip()
             labels = json.loads(content)
             labels["x_variance"] = explained_variance[0]
             labels["y_variance"] = explained_variance[1]
 
-            with open(DIMENSION_LABELS_PATH, "w") as out:
-                json.dump(labels, out, indent=2)
+            with open(DIMENSION_LABELS_PATH, "w") as f:
+                json.dump(labels, f, indent=2)
+
         except Exception as e:
-            print(f"Error generating dimension labels: {e}")
+            print("Error generating axis labels:", e)
 
     def load_dimension_labels(self):
-        try:
+        if os.path.exists(DIMENSION_LABELS_PATH):
             with open(DIMENSION_LABELS_PATH, "r") as f:
                 return json.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load dimension labels: {e}")
-            return {
-                "x_label": "PC1",
-                "y_label": "PC2",
-                "x_description": "First principal component",
-                "y_description": "Second principal component",
-                "x_variance": 0.0,
-                "y_variance": 0.0,
-            }
+        return {
+            "x_label": "PC1",
+            "y_label": "PC2",
+            "x_description": "First principal component",
+            "y_description": "Second principal component",
+            "x_variance": 0.0,
+            "y_variance": 0.0,
+        }
