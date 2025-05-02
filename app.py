@@ -60,6 +60,9 @@ def save_vc_profiles(profiles):
         if not all(key in p and p[key] for key in ["name", "url", "embedding", "strategy_summary"]):
             st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields: {[k for k in ['name', 'url', 'embedding', 'strategy_summary'] if k not in p or not p[k]]}")
             return
+        if not isinstance(p["strategy_summary"], str) or not p["strategy_summary"].strip():
+            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} has empty or invalid strategy_summary")
+            return
     try:
         with open(VC_PROFILE_PATH, "w") as f:
             json.dump(profiles, f, indent=2)
@@ -180,13 +183,16 @@ if vc_csv and founder_embedding:
                     st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
                     try:
+                        st.write(f"🧠 Interpreting strategy for {url}...")
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
                         st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
+                        if not summary or not isinstance(summary, str) or not summary.strip():
+                            summary = f"Default summary: Unable to generate detailed strategy for {url} based on available data."
                     except Exception as e:
                         st.error(f"❌ Failed to generate strategy summary: {str(e)}")
                         summary = f"Default summary: Unable to analyze {url} due to error: {str(e)}"
 
-                    if not isinstance(summary, str) or not summary.strip() or summary is None:
+                    if not isinstance(summary, str) or not summary.strip():
                         st.error(f"❌ Invalid strategy summary (got: {summary}). Skipping profile.")
                         continue
 
@@ -219,9 +225,11 @@ if vc_csv and founder_embedding:
 
                     # Validate profile before saving
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
-                    if not all(key in profile and profile[key] for key in required_fields):
-                        st.error(f"❌ Profile missing required fields: {[k for k in required_fields if k not in profile or not profile[k]]}. Skipping.")
+                    if not all(key in profile and profile[key] for key in required_fields) or not isinstance(profile["strategy_summary"], str) or not profile["strategy_summary"].strip():
+                        st.error(f"❌ Profile invalid: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]] or empty strategy_summary}")
                         continue
+
+                    st.write(f"📋 Profile data: name={profile['name']}, url={profile['url']}, strategy_summary_length={len(profile['strategy_summary'])} chars")
 
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
                     all_profiles.append(profile)
@@ -261,6 +269,7 @@ if vc_csv and founder_embedding:
             top_matches = matcher.match(top_k=5)
             top_vc_urls = [m["url"].strip().lower() for m in top_matches]
             st.write(f"✅ Found {len(top_matches)} top VC matches: {[m['name'] for m in top_matches]}")
+            st.write(f"🔍 Match details: {[f'{m['name']}: strategy_summary={len(m.get('strategy_summary', ''))} chars' for m in top_matches]}")
         except Exception as e:
             st.error(f"❌ Error matching VCs: {str(e)}")
             top_matches = []
@@ -271,8 +280,8 @@ if vc_csv and founder_embedding:
             st.subheader("🎯 Top 5 VC Matches")
             valid_matches = []
             for match in top_matches:
-                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]):
-                    st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]}")
+                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]) or not isinstance(match["strategy_summary"], str) or not match["strategy_summary"].strip():
+                    st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing or empty fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]}")
                     continue
                 valid_matches.append(match)
 
@@ -286,7 +295,7 @@ Founder Profile:
 
 VC Profile:
 - Name: {match['name']}
-- Strategy Summary: {match['strategy_summary'][:500] if match['strategy_summary'] else 'No strategy summary available'}
+- Strategy Summary: {match['strategy_summary'][:500]}
 - Strategic Tags: {', '.join(match.get('strategic_tags', []))}
 - Portfolio Size: {match.get('portfolio_size', 0)} companies
 - Category: {match.get('category', 'Uncategorized')}
@@ -368,6 +377,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
             st.write(f"PC2 Variance: {pca.explained_variance_ratio_[1] * 100:.1f}%")
 
         # Transform founder embedding
+        founder_2d = None
         try:
             founder_2d = pca.transform([founder_embedding])[0]
         except ValueError as e:
@@ -394,24 +404,25 @@ This VC specializes in [area]. It is a strong match for your business because [d
             st.warning(f"⚠️ Error generating dimension labels: {str(e)}. Using default labels.")
 
         # Generate cluster map
-        viz_agent = VisualizationAgent(api_key=openai_api_key)
-        fig, labels = viz_agent.generate_cluster_map(
-            profiles=profiles,
-            coords_2d=coords,
-            pca=pca,
-            dimension_labels=dim_labels,
-            founder_embedding_2d=founder_2d,
-            founder_cluster_id=None,
-            top_match_names=top_vc_urls,
-        )
+        if founder_2d is not None:
+            viz_agent = VisualizationAgent(api_key=openai_api_key)
+            fig, labels = viz_agent.generate_cluster_map(
+                profiles=profiles,
+                coords_2d=coords,
+                pca=pca,
+                dimension_labels=dim_labels,
+                founder_embedding_2d=founder_2d,
+                founder_cluster_id=None,
+                top_match_names=top_vc_urls,
+            )
 
-        # Generate category narratives
-        category_narratives = {}
-        unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
-        for category in unique_categories:
-            category_profiles = [p for p in profiles if p.get("category") == category]
-            rationale = category_profiles[0].get("category_rationale", "No rationale provided.") if category_profiles else ""
-            prompt = f"""
+            # Generate category narratives
+            category_narratives = {}
+            unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
+            for category in unique_categories:
+                category_profiles = [p for p in profiles if p.get("category") == category]
+                rationale = category_profiles[0].get("category_rationale", "No rationale provided.") if category_profiles else ""
+                prompt = f"""
 You are a senior VC analyst creating a narrative for a group of venture capital firms in the '{category}' category.
 
 Input:
@@ -422,37 +433,37 @@ Your task is to write a concise narrative (2–3 sentences) describing what make
 
 Return the narrative directly as plain text.
 """
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a clear and insightful VC analyst."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.7,
-                    max_tokens=150
-                )
-                category_narratives[category] = response.choices[0].message.content.strip()
-            except Exception as e:
-                category_narratives[category] = f"(Narrative generation failed: {str(e)})"
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a clear and insightful VC analyst."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.7,
+                        max_tokens=150
+                    )
+                    category_narratives[category] = response.choices[0].message.content.strip()
+                except Exception as e:
+                    category_narratives[category] = f"(Narrative generation failed: {str(e)})"
 
-        # Display visualization
-        st.subheader("📊 VC Landscape Visualization")
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
-            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
+            # Display visualization
+            st.subheader("📊 VC Landscape Visualization")
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
+                st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
 
-            # Display category narratives
-            st.subheader("📚 VC Category Descriptions")
-            for category in unique_categories:
-                narrative = category_narratives.get(category, "No narrative available.")
-                st.markdown(f"**{category}**: {narrative}")
-                st.markdown("---")
+                # Display category narratives
+                st.subheader("📚 VC Category Descriptions")
+                for category in unique_categories:
+                    narrative = category_narratives.get(category, "No narrative available.")
+                    st.markdown(f"**{category}**: {narrative}")
+                    st.markdown("---")
+            else:
+                st.warning("⚠️ Failed to generate visualization.")
         else:
-            st.warning("⚠️ Failed to generate visualization.")
-    except KeyError as e:
-        st.error(f"❌ Profile data error in clustering/visualization: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
+            st.error("❌ Visualization skipped: Founder embedding transformation failed.")
     except Exception as e:
         st.error(f"❌ Error during clustering/visualization: {str(e)}")
 else:
