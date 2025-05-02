@@ -33,8 +33,13 @@ def load_vc_profiles(expected_dim=1536):
                 p for p in profiles
                 if isinstance(p.get("embedding"), list) and len(p["embedding"]) == expected_dim
             ]
+            if not profiles:
+                return []
             if len(valid_profiles) < len(profiles):
-                st.warning(f"⚠️ Skipped {len(profiles) - len(valid_profiles)} profiles with invalid embedding dimensions.")
+                st.error(f"❌ Found {len(profiles) - len(valid_profiles)} profiles with invalid embedding dimensions. Clearing vc_profiles.json.")
+                with open(VC_PROFILE_PATH, "w") as f:
+                    json.dump([], f)
+                return []
             return valid_profiles
         return []
     except (json.JSONDecodeError, FileNotFoundError) as e:
@@ -55,7 +60,7 @@ def save_vc_profiles(profiles):
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
-st.markdown("Upload your startup concept to receive curated VC insights and a competitive landscape map.")
+st.markdown("Upload your startup concept and a CSV of VC firms to receive curated VC insights and a competitive landscape map.")
 
 # Initialize environment and agents
 load_dotenv()
@@ -68,9 +73,9 @@ embedder = EmbedderAgent(api_key=openai_api_key)
 client = openai.OpenAI(api_key=openai_api_key)
 
 # Document upload and processing
-uploaded_file = st.file_uploader("📄 Upload Your White Paper", type=["pdf", "txt", "docx"])
+st.header("📄 Upload Your White Paper")
+uploaded_file = st.file_uploader("Choose a PDF, TXT, or DOCX file", type=["pdf", "txt", "docx"])
 founder_embedding = None
-top_matches = []
 combined_input = ""
 if uploaded_file:
     try:
@@ -84,11 +89,11 @@ if uploaded_file:
 
         cleaned_text = clean_text(text)
         summary = summarizer.summarize(cleaned_text)
-        st.header("📄 Startup Summary")
+        st.subheader("Startup Summary")
         st.markdown(f"> {summary}")
 
         # Founder survey
-        st.header("🧾 Founder Survey (Optional)")
+        st.subheader("Founder Survey (Optional)")
         survey_agent = FounderSurveyAgent()
         with st.form("founder_survey"):
             product_stage = st.selectbox("Product Stage", ["Idea", "Prototype", "MVP", "Scaling"])
@@ -120,86 +125,20 @@ if uploaded_file:
         combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
         founder_embedding = embedder.embed_text(combined_input)
 
-        if isinstance(founder_embedding, list):
-            st.success("✅ Founder embedding created ({len(founder_embedding)} dimensions).")
-            matcher = FounderMatcherAgent(founder_embedding)
-            try:
-                top_matches = matcher.match(top_k=5)
-                top_vc_urls = [m["url"].strip().lower() for m in top_matches]
-                st.write(f"✅ Found {len(top_matches)} top VC matches: {[m['name'] for m in top_matches]}")
-            except Exception as e:
-                st.error(f"❌ Error matching VCs: {str(e)}")
-                top_matches = []
-                top_vc_urls = []
-
-            # Generate robust rationale for each match
-            for match in top_matches:
-                prompt = f"""
-You are a senior VC advisor helping a startup founder find the best venture capital firms for their company.
-
-Founder Profile:
-{combined_input}
-
-VC Profile:
-- Name: {match['name']}
-- Strategy Summary: {match['strategy_summary'][:500]}
-- Strategic Tags: {', '.join(match.get('strategic_tags', []))}
-- Portfolio Size: {match.get('portfolio_size', 0)} companies
-- Category: {match.get('category', 'Uncategorized')}
-
-Your task is to explain why this VC is a strong match for the founder's startup. Be specific, referencing the founder's product stage, customer type, go-to-market strategy, or other relevant details from their profile. Highlight aspects of the VC’s strategy, focus, or portfolio that align with the founder’s needs.
-
-Respond in this format:
-**Why {match['name']} is a Match**:
-This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
-"""
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4",
-                        messages=[
-                            {"role": "system", "content": "You are a precise and insightful VC advisor."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.7,
-                        max_tokens=200
-                    )
-                    match['rationale'] = response.choices[0].message.content.strip()
-                except Exception as e:
-                    match['rationale'] = f"(Rationale generation failed: {str(e)})"
-                    st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
-
-            if top_matches:
-                st.subheader("🎯 Top 5 VC Matches")
-                st.dataframe(
-                    pd.DataFrame([
-                        {
-                            "Name": m["name"],
-                            "URL": m["url"],
-                            "Category": m.get("category", "Uncategorized"),
-                            "Score": f"{m['score']:.2f}",
-                            "Rationale": m.get("rationale", "No rationale available.")
-                        } for m in top_matches
-                    ]),
-                    use_container_width=True
-                )
-                with st.expander("📝 Detailed Match Justifications"):
-                    for match in top_matches:
-                        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                        st.markdown(f"• Category: {match.get('category', 'Uncategorized')}  |  Score: {match['score']:.2f}")
-                        st.markdown(f"{match.get('rationale', 'No rationale available.')}")
-                        st.markdown("---")
-            else:
-                st.warning("⚠️ No VC matches found. Please upload a CSV with VC URLs to generate matches.")
+        if isinstance(founder_embedding, list) and len(founder_embedding) == 1536:
+            st.success(f"✅ Founder embedding created ({len(founder_embedding)} dimensions).")
         else:
-            st.error("❌ Failed to create founder embedding.")
+            st.error(f"❌ Failed to create founder embedding: expected 1536 dimensions, got {len(founder_embedding) if isinstance(founder_embedding, list) else 'none'}.")
+            st.stop()
     except Exception as e:
         st.error(f"❌ Error processing document: {str(e)}")
+        st.stop()
 
 # VC CSV upload and processing
 st.divider()
 st.header("📥 Upload VC CSV")
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
-if vc_csv:
+if vc_csv and founder_embedding:
     try:
         df = pd.read_csv(vc_csv)
         if "url" not in df.columns:
@@ -260,24 +199,88 @@ if vc_csv:
     except Exception as e:
         st.error(f"❌ Error reading CSV: {str(e)}")
 
-# Clustering, categorization, and visualization
-if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
+    # Matching, clustering, categorization, and visualization
     try:
-        # Validate founder embedding dimensionality
-        if not isinstance(founder_embedding, list) or len(founder_embedding) != 1536:
-            st.error(f"❌ Invalid founder embedding: expected 1536 dimensions, got {len(founder_embedding) if isinstance(founder_embedding, list) else 'none'}")
-            st.stop()
-
-        profiles = load_vc_profiles(expected_dim=len(founder_embedding))
+        profiles = load_vc_profiles(expected_dim=1536)
         if not profiles:
-            st.warning("⚠️ No valid VC profiles found for clustering. Please upload a CSV.")
+            st.warning("⚠️ No valid VC profiles found. Please ensure CSV processing completed successfully.")
             st.stop()
 
         # Validate number of profiles for clustering
         valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list)]
         if len(valid_profiles) < 2:
-            st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for clustering and visualization.")
+            st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for matching and visualization.")
             st.stop()
+
+        # Match founder to VCs
+        matcher = FounderMatcherAgent(founder_embedding)
+        try:
+            top_matches = matcher.match(top_k=5)
+            top_vc_urls = [m["url"].strip().lower() for m in top_matches]
+            st.write(f"✅ Found {len(top_matches)} top VC matches: {[m['name'] for m in top_matches]}")
+        except Exception as e:
+            st.error(f"❌ Error matching VCs: {str(e)}")
+            top_matches = []
+            top_vc_urls = []
+
+        # Generate robust rationale for each match
+        for match in top_matches:
+            prompt = f"""
+You are a senior VC advisor helping a startup founder find the best venture capital firms for their company.
+
+Founder Profile:
+{combined_input}
+
+VC Profile:
+- Name: {match['name']}
+- Strategy Summary: {match['strategy_summary'][:500]}
+- Strategic Tags: {', '.join(match.get('strategic_tags', []))}
+- Portfolio Size: {match.get('portfolio_size', 0)} companies
+- Category: {match.get('category', 'Uncategorized')}
+
+Your task is to explain why this VC is a strong match for the founder's startup. Be specific, referencing the founder's product stage, customer type, go-to-market strategy, or other relevant details from their profile. Highlight aspects of the VC’s strategy, focus, or portfolio that align with the founder’s needs.
+
+Respond in this format:
+**Why {match['name']} is a Match**:
+This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
+"""
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a precise and insightful VC advisor."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=200
+                )
+                match['rationale'] = response.choices[0].message.content.strip()
+            except Exception as e:
+                match['rationale'] = f"(Rationale generation failed: {str(e)})"
+                st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
+
+        if top_matches:
+            st.subheader("🎯 Top 5 VC Matches")
+            st.dataframe(
+                pd.DataFrame([
+                    {
+                        "Name": m["name"],
+                        "URL": m["url"],
+                        "Category": m.get("category", "Uncategorized"),
+                        "Score": f"{m['score']:.2f}",
+                        "Rationale": m.get("rationale", "No rationale available.")
+                    } for m in top_matches
+                ]),
+                use_container_width=True
+            )
+            with st.expander("📝 Detailed Match Justifications"):
+                for match in top_matches:
+                    st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                    st.markdown(f"• Category: {match.get('category', 'Uncategorized')}  |  Score: {match['score']:.2f}")
+                    st.markdown(f"{match.get('rationale', 'No rationale available.')}")
+                    st.markdown("---")
+        else:
+            st.warning("⚠️ No VC matches found. Please ensure valid VC profiles were generated from the CSV.")
 
         # Apply K-means clustering
         clustering_agent = ClusterInterpreterAgent(api_key=openai_api_key)
@@ -290,10 +293,6 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
 
         # Apply PCA for visualization
         valid_embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
-        if len(valid_embeddings) < 2:
-            st.warning("⚠️ Not enough valid embeddings for clustering.")
-            st.stop()
-
         pca = PCA(n_components=2)
         coords = pca.fit_transform(valid_embeddings)
         for i, p in enumerate(profiles):
@@ -390,4 +389,7 @@ Return the narrative directly as plain text.
         else:
             st.warning("⚠️ Failed to generate visualization.")
     except Exception as e:
-        st.error(f"❌ Error during clustering/visualization: {str(e)}")
+        st.error(f"❌ Error during matching/clustering/visualization: {str(e)}")
+else:
+    if founder_embedding:
+        st.info("ℹ️ Please upload a CSV with VC URLs to generate matches and visualization.")
