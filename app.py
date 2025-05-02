@@ -163,7 +163,21 @@ if vc_csv and founder_embedding:
         processed_urls = 0
         for url in urls:
 
-# 🔍 DEBUGGING VC PROFILE GENERATION
+        # 🔍 DEBUGGING VC PROFILE GENERATION
+        st.write(f"🔎 Scraping VC site: {url}")
+        scraped_text = scraper_agent.scrape_text(url)
+        st.write(f"📄 Scraped text ({len(scraped_text)} chars): {scraped_text[:300]}...")
+
+        if not scraped_text:
+            st.warning(f"⚠️ Skipping {url}: No usable content found.")
+            continue
+
+        summary = summarizer_agent.summarize(scraped_text)
+        st.write(f"🧠 Summary for {url}: {summary[:300]}...")
+
+        if summary.startswith("[Insufficient") or summary.startswith("[Error"):
+            st.warning(f"⚠️ Skipping {url}: Summary was not usable.")
+            continue
 st.write(f"🔎 Scraping VC site: {url}")
 scraped_text = scraper_agent.scrape_text(url)
 st.write(f"📄 Scraped text ({len(scraped_text)} chars): {scraped_text[:300]}...")
