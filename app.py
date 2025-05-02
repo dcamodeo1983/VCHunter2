@@ -29,16 +29,17 @@ def load_vc_profiles(expected_dim=1536):
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 profiles = json.load(f)
-            valid_profiles = [
-                p for p in profiles
-                if isinstance(p.get("embedding"), list) and len(p["embedding"]) == expected_dim
-                and isinstance(p.get("strategy_summary"), str) and p["strategy_summary"].strip()
-            ]
-            if not profiles:
-                return []
-            if len(valid_profiles) < len(profiles):
-                invalid_count = len(profiles) - len(valid_profiles)
-                st.error(f"❌ Found {invalid_count} profiles with invalid embeddings or missing strategy_summary. Clearing vc_profiles.json.")
+            valid_profiles = []
+            invalid_reasons = []
+            for p in profiles:
+                if not isinstance(p.get("embedding"), list) or len(p["embedding"]) != expected_dim:
+                    invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: invalid embedding (got {len(p.get('embedding', []))} dimensions)")
+                elif not isinstance(p.get("strategy_summary"), str) or not p["strategy_summary"].strip():
+                    invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty strategy_summary")
+                else:
+                    valid_profiles.append(p)
+            if invalid_reasons:
+                st.error(f"❌ Found {len(invalid_reasons)} invalid profiles:\n" + "\n".join(invalid_reasons) + "\nClearing vc_profiles.json.")
                 with open(VC_PROFILE_PATH, "w") as f:
                     json.dump([], f)
                 return []
@@ -164,9 +165,14 @@ if vc_csv and founder_embedding:
                         if links else enricher.extract_portfolio_entries(vc_text)
                     )
 
-                    summary = interpreter.interpret_strategy(url, vc_text, portfolio)
+                    try:
+                        summary = interpreter.interpret_strategy(url, vc_text, portfolio)
+                    except Exception as e:
+                        st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
+                        summary = f"Unable to generate strategy summary due to error: {str(e)}"
+
                     if not isinstance(summary, str) or not summary.strip():
-                        st.error(f"❌ Failed to generate strategy summary for {url}.")
+                        st.error(f"❌ Invalid strategy summary for {url}. Skipping profile.")
                         continue
 
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
@@ -202,6 +208,7 @@ if vc_csv and founder_embedding:
                     st.success("✅ Profile saved.")
                 except Exception as e:
                     st.error(f"❌ Error processing {url}: {str(e)}")
+                    continue
     except Exception as e:
         st.error(f"❌ Error reading CSV: {str(e)}")
 
