@@ -164,7 +164,17 @@ Explain why this VC is a strong match. Respond in this format:
                 st.dataframe(match_df, use_container_width=True)
 
                 # Full rationale view in expander
-                with st.expander("📝 Full Justifications for Top Matches"):
+                
+with st.expander("📝 Full Justifications for Top Matches"):
+    st.markdown("Each firm below is matched to your concept with a tailored rationale:")
+    for match in top_matches:
+        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+        st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+        rationale = match.get('rationale') or 'No strategy available.'
+        st.markdown(f"**Why this VC is a match:**\n\n> {rationale}")
+        st.markdown("---")
+
+
                     st.markdown("Each firm below is matched to your concept with a tailored rationale:")
 
                     # (Removed duplicated detailed top match display block)
