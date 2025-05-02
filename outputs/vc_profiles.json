@@ -1,1 +1,21 @@
-[]
+[
+  {
+    "name": "a16z.com",
+    "url": "https://a16z.com",
+    "embedding": [0.123, 0.456, ...],
+    "portfolio_size": 18,
+    "strategy_summary": "We invest in bold founders...",
+    "strategic_tags": ["AI", "Infrastructure"],
+    "motivational_signals": ["Breakthrough Tech", "Experienced Founders"],
+    "category": "AI Frontier",
+    "cluster_id": 0,
+    "coordinates": [1.23, 4.56]
+  },
+  {
+    "name": "luxcapital.com",
+    "url": "https://luxcapital.com",
+    "embedding": [...],
+    ...
+  }
+]
+
