@@ -157,31 +157,37 @@ if vc_csv and founder_embedding:
         urls = df["url"].dropna().unique().tolist()
         st.success(f"✅ Loaded {len(urls)} VC URLs.")
 
+        processed_urls = 0
         for url in urls:
             with st.expander(url):
                 try:
+                    st.write(f"🔍 Processing {url}...")
                     scraper = VCWebsiteScraperAgent()
                     enricher = PortfolioEnricherAgent()
                     interpreter = VCStrategicInterpreterAgent(api_key=openai_api_key)
 
                     vc_text = scraper.scrape_text(url)
-                    st.write(f"📄 Scraped text length for {url}: {len(vc_text)} chars")
+                    st.write(f"📄 Scraped text length: {len(vc_text)} chars")
+                    if not vc_text.strip():
+                        st.error(f"❌ No text scraped for {url}. Skipping.")
+                        continue
+
                     links = scraper.find_portfolio_links(url)
                     portfolio = (
                         enricher.extract_portfolio_entries_from_pages(links)
                         if links else enricher.extract_portfolio_entries(vc_text)
                     )
-                    st.write(f"📈 Portfolio size for {url}: {len(portfolio)} companies")
+                    st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
                     try:
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
-                        st.write(f"🧠 Raw strategy summary for {url}: {summary[:100] if summary else 'None'}...")
+                        st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
                     except Exception as e:
-                        st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
-                        summary = f"Unable to generate strategy summary due to error: {str(e)}"
+                        st.error(f"❌ Failed to generate strategy summary: {str(e)}")
+                        summary = f"Default summary: Unable to analyze {url} due to error: {str(e)}"
 
                     if not isinstance(summary, str) or not summary.strip() or summary is None:
-                        st.error(f"❌ Invalid strategy summary for {url} (got: {summary}). Skipping profile.")
+                        st.error(f"❌ Invalid strategy summary (got: {summary}). Skipping profile.")
                         continue
 
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
@@ -192,7 +198,7 @@ if vc_csv and founder_embedding:
                     vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
 
                     if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
-                        st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
+                        st.error(f"❌ Invalid embedding: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
                         continue
 
                     profile = {
@@ -214,34 +220,43 @@ if vc_csv and founder_embedding:
                     # Validate profile before saving
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
                     if not all(key in profile and profile[key] for key in required_fields):
-                        st.error(f"❌ Profile for {url} missing required fields: {[k for k in required_fields if k not in profile or not profile[k]]}. Skipping.")
+                        st.error(f"❌ Profile missing required fields: {[k for k in required_fields if k not in profile or not profile[k]]}. Skipping.")
                         continue
 
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
                     all_profiles.append(profile)
                     save_vc_profiles(all_profiles)
                     st.success("✅ Profile saved.")
+                    processed_urls += 1
                 except Exception as e:
                     st.error(f"❌ Error processing {url}: {str(e)}")
                     continue
+
+        if processed_urls == 0:
+            st.error("❌ No valid profiles were generated from the CSV. Please check URLs and try again.")
+            st.stop()
+        else:
+            st.success(f"✅ Processed {processed_urls}/{len(urls)} URLs successfully.")
     except Exception as e:
         st.error(f"❌ Error reading CSV: {str(e)}")
+        st.stop()
 
     # Matching and display
     try:
         profiles = load_vc_profiles(expected_dim=1536)
         if not profiles:
-            st.warning("⚠️ No valid VC profiles found. Please ensure CSV processing completed successfully.")
+            st.error("❌ No valid VC profiles found in vc_profiles.json. Please ensure CSV processing generated profiles.")
             st.stop()
 
         # Validate number of profiles for matching
-        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list)]
+        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list) and isinstance(p.get("strategy_summary"), str) and p["strategy_summary"].strip()]
         if len(valid_profiles) < 1:
-            st.warning("⚠️ At least 1 valid VC profile with embeddings is required for matching.")
+            st.error("❌ No valid VC profiles with embeddings and strategy_summary. Please upload a new CSV.")
             st.stop()
 
         # Match founder to VCs
         matcher = FounderMatcherAgent(founder_embedding)
+        matcher.profiles = valid_profiles  # Ensure matcher uses validated profiles
         try:
             top_matches = matcher.match(top_k=5)
             top_vc_urls = [m["url"].strip().lower() for m in top_matches]
