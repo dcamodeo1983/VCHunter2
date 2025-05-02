@@ -1,10 +1,14 @@
-import streamlit as st
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+mport streamlit as st
 import os
 import pandas as pd
 import json
 from dotenv import load_dotenv
 import numpy as np
 from sklearn.decomposition import PCA
+
 
 # === Agent Imports ===
 from agents.founder_doc_reader_agent import FounderDocReaderAgent
