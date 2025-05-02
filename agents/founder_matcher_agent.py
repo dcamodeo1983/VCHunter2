@@ -1,7 +1,8 @@
+
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from agents.base_agent import BaseAgent  # fixed to use absolute import
+from .base_agent import BaseAgent  # switched to relative import
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
