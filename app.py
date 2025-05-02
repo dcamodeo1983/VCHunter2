@@ -239,7 +239,7 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             st.stop()
 
         # Apply K-means clustering
-        clustering_agent = ClusteringAgent(api_key=openai_api_key)
+        clustering_agent = ClusteringAgent()  # Removed api_key argument
         profiles = clustering_agent.assign_kmeans_clusters(n_clusters=4)
 
         # Categorize clusters
