@@ -201,16 +201,14 @@ if os.path.exists(VC_PROFILE_PATH):
         p["pca_x"], p["pca_y"] = float(coords[i][0]), float(coords[i][1])
     save_vc_profiles(profiles)
 
-if profiles and len(profiles) > 1 and isinstance(embedding, list):
-        pca = PCA(n_components=2)
-        coords = pca.fit_transform([p['embedding'] for p in profiles])
-        founder_2d = pca.transform([embedding])[0]
-        st.subheader("🎯 Top 5 VC Matches")
-        for match in top_matches:
-            st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-            st.markdown(f"• Category: {match['category']}  |  Score: {match['score']}")
-            st.markdown("---")
-        dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
+    valid_embeddings = [p['embedding'] for p in profiles if isinstance(p.get('embedding'), list) and len(p['embedding']) == len(embedding)]
+    coords = pca.fit_transform(valid_embeddings)
+    founder_2d = pca.transform([embedding])[0]
+    st.subheader("🎯 Top 5 VC Matches")
+    for match in top_matches:
+        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+        st.markdown(f"• Category: {match['category']}  |  Score: {match['score']}")
+        st.markdown("---")
         dim_agent.generate_axis_labels()
         labels = dim_agent.load_dimension_labels()
 
