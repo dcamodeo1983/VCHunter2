@@ -91,9 +91,10 @@ if uploaded_file:
         survey_summary = survey_agent.format_survey_summary(responses)
         st.success("✅ Survey submitted!")
 
-    combined_input = f"{summary.strip()}
-
-{survey_summary.strip()}" if survey_summary else summary.strip()
+    if survey_summary:
+        combined_input = "{}\n\n{}".format(summary.strip(), survey_summary.strip())
+    else:
+        combined_input = summary.strip()
     embedding = embedder.embed_text(combined_input)
 
     if isinstance(embedding, list):
@@ -172,8 +173,7 @@ if vc_csv:
             tagger = StrategicTaggerAgent(api_key=openai_api_key)
             tag_data = tagger.generate_tags_and_signals(summary)
 
-            vc_embedding = embed_vc_profile(vc_text, "
-".join([f"{e.get('name')}: {e.get('description')}" for e in portfolio]), summary, embedder)
+            vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
 
             profile = {
                 "name": url.split("//")[-1].replace("www.", ""),
