@@ -6,30 +6,18 @@ import os
 from collections import Counter
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
-DIMENSION_LABELS_PATH = "outputs/dimension_labels.json"
 CLUSTER_LABELS_PATH = "outputs/cluster_labels.json"
 
 class VisualizationAgent:
     def __init__(self, api_key=None):
         self.api_key = api_key
-        self.color_palette = px.colors.qualitative.Bold  # Changed to Bold for high contrast
+        self.color_palette = px.colors.qualitative.Bold  # High-contrast colors
 
     def load_profiles(self):
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
                 return json.load(f)
         return []
-
-    def load_dimension_labels(self):
-        if os.path.exists(DIMENSION_LABELS_PATH):
-            with open( DIMENSION_LABELS_PATH, "r") as f:
-                return json.load(f)
-        return {
-            "x_label": "PC1",
-            "y_label": "PC2",
-            "x_description": "",
-            "y_description": "",
-        }
 
     def load_cluster_descriptions(self):
         if os.path.exists(CLUSTER_LABELS_PATH):
@@ -54,7 +42,12 @@ class VisualizationAgent:
             profile["pca_x"] = float(x)
             profile["pca_y"] = float(y)
 
-        dim_labels = dimension_labels or self.load_dimension_labels()
+        dim_labels = dimension_labels or {
+            "x_label": "PC1",
+            "y_label": "PC2",
+            "x_description": "",
+            "y_description": "",
+        }
         top_match_names = top_match_names or []
         normalized_top_urls = [url.strip().lower() for url in top_match_names]
 
@@ -80,7 +73,7 @@ class VisualizationAgent:
             lambda url: "star" if url in normalized_top_urls else "circle"
         )
         df["Size"] = df["Normalized URL"].apply(
-            lambda url: 12 if url in normalized_top_urls else 7
+            lambda url: 15 if url in normalized_top_urls else 7
         )
 
         fig = px.scatter(
@@ -119,12 +112,12 @@ class VisualizationAgent:
                 y=[founder_y],
                 mode="markers",
                 marker=dict(
-                    symbol="star",
-                    size=22,
-                    color="gold",
-                    line=dict(color="black", width=2),
+                    symbol="diamond",
+                    size=20,
+                    color="black",
+                    line=dict(color="white", width=2),
                 ),
-                name="Founder Idea",
+                name="Your Startup",
                 showlegend=True,
             )
 
