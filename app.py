@@ -20,11 +20,11 @@ from agents.founder_survey_agent import FounderSurveyAgent
 from agents.founder_matcher_agent import FounderMatcherAgent
 from utils.utils import clean_text, count_tokens, embed_vc_profile
 import openai
+import re
 
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
 def load_vc_profiles(expected_dim=1536):
-    """Load VC profiles with valid embeddings and strategy_summary."""
     try:
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
@@ -34,7 +34,7 @@ def load_vc_profiles(expected_dim=1536):
             for p in profiles:
                 if not isinstance(p.get("embedding"), list) or len(p["embedding"]) != expected_dim:
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: invalid embedding (got {len(p.get('embedding', []))} dimensions)")
-                elif not isinstance(p.get("strategy_summary"), str) or not p["strategy_summary"].strip() or p.get("strategy_summary") is None:
+                elif not isinstance(p.get("strategy_summary"), str) or not re.sub(r"\s+", " ", p["strategy_summary"]).strip() or p.get("strategy_summary") is None:
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing, empty, or None strategy_summary")
                 elif not isinstance(p.get("url"), str) or not p["url"].strip():
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty url")
@@ -52,7 +52,6 @@ def load_vc_profiles(expected_dim=1536):
         return []
 
 def save_vc_profiles(profiles):
-    """Save VC profiles to file, ensuring valid data."""
     if not profiles:
         st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
@@ -60,8 +59,9 @@ def save_vc_profiles(profiles):
         if not all(key in p and p[key] for key in ["name", "url", "embedding", "strategy_summary"]):
             st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields: {[k for k in ['name', 'url', 'embedding', 'strategy_summary'] if k not in p or not p[k]]}")
             return
-        if not isinstance(p["strategy_summary"], str) or not p["strategy_summary"].strip():
-            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} has empty or invalid strategy_summary")
+        cleaned_strategy_summary = re.sub(r"\s+", " ", p["strategy_summary"]).strip() if p["strategy_summary"] else ""
+        if not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
+            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} has empty or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
             return
     try:
         with open(VC_PROFILE_PATH, "w") as f:
@@ -74,7 +74,6 @@ st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter: Founder Intelligence Report")
 st.markdown("Upload your startup concept and a CSV of VC firms to receive curated VC insights and a competitive landscape map.")
 
-# Initialize environment and agents
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 if not openai_api_key:
@@ -84,7 +83,6 @@ openai.api_key = openai_api_key
 embedder = EmbedderAgent(api_key=openai_api_key)
 client = openai.OpenAI(api_key=openai_api_key)
 
-# Document upload and processing
 st.header("📄 Upload Your White Paper")
 uploaded_file = st.file_uploader("Choose a PDF, TXT, or DOCX file", type=["pdf", "txt", "docx"])
 founder_embedding = None
@@ -104,7 +102,6 @@ if uploaded_file:
         st.subheader("Startup Summary")
         st.markdown(f"> {summary}")
 
-        # Founder survey
         st.subheader("Founder Survey (Optional)")
         survey_agent = FounderSurveyAgent()
         with st.form("founder_survey"):
@@ -133,7 +130,6 @@ if uploaded_file:
             survey_summary = survey_agent.format_survey_summary(responses)
             st.success("✅ Survey submitted!")
 
-        # Generate founder embedding
         combined_input = f"{summary.strip()}\n\n{survey_summary.strip()}" if survey_summary else summary.strip()
         founder_embedding = embedder.embed_text(combined_input)
 
@@ -146,7 +142,6 @@ if uploaded_file:
         st.error(f"❌ Error processing document: {str(e)}")
         st.stop()
 
-# VC CSV upload and processing
 st.divider()
 st.header("📥 Upload VC CSV")
 vc_csv = st.file_uploader("Upload a CSV with a column named 'url'", type=["csv"])
@@ -171,34 +166,32 @@ if vc_csv and founder_embedding:
 
                     vc_text = scraper.scrape_text(url)
                     st.write(f"📄 Scraped text length: {len(vc_text)} chars")
-                    if not vc_text.strip():
-                        st.error(f"❌ No text scraped for {url}. Skipping.")
+                    cleaned_vc_text = re.sub(r"\s+", " ", vc_text).strip() if vc_text else ""
+                    if not cleaned_vc_text or len(cleaned_vc_text.split()) < 100:
+                        st.error(f"❌ Insufficient text scraped for {url} ({len(cleaned_vc_text.split())} words). Skipping.")
                         continue
 
                     links = scraper.find_portfolio_links(url)
                     portfolio = (
                         enricher.extract_portfolio_entries_from_pages(links)
-                        if links else enricher.extract_portfolio_entries(vc_text)
+                        if links else enricher.extract_portfolio_entries(cleaned_vc_text)
                     )
                     st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
-                    # Generate strategy summary
-                    summary = interpreter.interpret_strategy(url, vc_text, portfolio)
-                    st.write(f"🧠 Raw strategy summary: {summary[:100] if summary else 'None'}...")
+                    summary = interpreter.interpret_strategy(url, cleaned_vc_text, portfolio)
+                    cleaned_summary = re.sub(r"\s+", " ", summary).strip() if summary else ""
+                    st.write(f"🧠 Raw strategy summary: {cleaned_summary[:100] if cleaned_summary else 'None'}...")
 
-                    # Early validation of strategy_summary
-                    if not isinstance(summary, str) or not summary.strip():
-                        st.error(f"❌ Invalid strategy summary for {url} (got: {summary}). Skipping profile.")
+                    if not cleaned_summary or len(cleaned_summary.split()) < 20:
+                        st.error(f"❌ Invalid strategy summary for {url} ({len(cleaned_summary.split())} words). Skipping profile.")
                         continue
 
-                    st.markdown(f"🧠 Strategy: {summary[:300]}...")
+                    st.markdown(f"🧠 Strategy: {cleaned_summary[:300]}...")
 
-                    # Generate tags and signals
                     tagger = StrategicTaggerAgent(api_key=openai_api_key)
-                    tag_data = tagger.generate_tags_and_signals(summary)
+                    tag_data = tagger.generate_tags_and_signals(cleaned_summary)
 
-                    # Generate embedding
-                    vc_embedding = embed_vc_profile(vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), summary, embedder)
+                    vc_embedding = embed_vc_profile(cleaned_vc_text, "\n".join([f"{e.get('name', '')}: {e.get('description', '')}" for e in portfolio]), cleaned_summary, embedder)
                     if not isinstance(vc_embedding, list) or len(vc_embedding) != 1536:
                         st.error(f"❌ Invalid embedding for {url}: expected 1536 dimensions, got {len(vc_embedding) if isinstance(vc_embedding, list) else 'none'}")
                         continue
@@ -208,7 +201,7 @@ if vc_csv and founder_embedding:
                         "url": url,
                         "embedding": vc_embedding,
                         "portfolio_size": len(portfolio),
-                        "strategy_summary": summary,
+                        "strategy_summary": cleaned_summary,
                         "strategic_tags": tag_data.get("tags", []),
                         "motivational_signals": tag_data.get("motivational_signals", []),
                         "category": None,
@@ -219,13 +212,13 @@ if vc_csv and founder_embedding:
                         "pca_y": None,
                     }
 
-                    # Validate profile before saving
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
-                    if not all(key in profile and profile[key] for key in required_fields) or not isinstance(profile["strategy_summary"], str) or not profile["strategy_summary"].strip():
-                        st.error(f"❌ Profile invalid for {url}: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or empty strategy_summary")
+                    cleaned_strategy_summary = re.sub(r"\s+", " ", profile["strategy_summary"]).strip() if profile["strategy_summary"] else ""
+                    if not all(key in profile and profile[key] for key in required_fields) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
+                        st.error(f"❌ Profile invalid for {url}: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
                         continue
 
-                    st.write(f"📋 Profile data: name={profile['name']}, url={profile['url']}, strategy_summary_length={len(profile['strategy_summary'])} chars")
+                    st.write(f"📋 Profile data: name={profile['name']}, url={profile['url']}, strategy_summary_length={len(cleaned_strategy_summary)} chars")
 
                     all_profiles = [p for p in load_vc_profiles() if p["url"] != url]
                     all_profiles.append(profile)
@@ -245,39 +238,36 @@ if vc_csv and founder_embedding:
         st.error(f"❌ Error reading CSV: {str(e)}")
         st.stop()
 
-    # Matching and display
     try:
         profiles = load_vc_profiles(expected_dim=1536)
         if not profiles:
             st.error("❌ No valid VC profiles found in vc_profiles.json. Please ensure CSV processing generated profiles.")
             st.stop()
 
-        # Validate number of profiles for matching
-        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list) and isinstance(p.get("strategy_summary"), str) and p["strategy_summary"].strip()]
+        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list) and isinstance(p.get("strategy_summary"), str) and re.sub(r"\s+", " ", p["strategy_summary"]).strip() and len(re.sub(r"\s+", " ", p["strategy_summary"]).strip().split()) >= 20]
         if len(valid_profiles) < 1:
             st.error("❌ No valid VC profiles with embeddings and strategy_summary. Please upload a new CSV.")
             st.stop()
 
-        # Match founder to VCs
         matcher = FounderMatcherAgent(founder_embedding)
-        matcher.profiles = valid_profiles  # Ensure matcher uses validated profiles
+        matcher.profiles = valid_profiles
         try:
             top_matches = matcher.match(top_k=5)
             top_vc_urls = [m["url"].strip().lower() for m in top_matches]
             st.write(f"✅ Found {len(top_matches)} top VC matches: {[m['name'] for m in top_matches]}")
-            st.write(f"🔍 Match details: {[f'{m['name']}: strategy_summary={len(m.get('strategy_summary', ''))} chars' for m in top_matches]}")
+            st.write(f"🔍 Match details: {[f'{m['name']}: strategy_summary={len(re.sub(r'\\s+', ' ', m.get('strategy_summary', '')).strip())} chars' for m in top_matches]}")
         except Exception as e:
             st.error(f"❌ Error matching VCs: {str(e)}")
             top_matches = []
             top_vc_urls = []
 
-        # Generate and display matches
         if top_matches:
             st.subheader("🎯 Top 5 VC Matches")
             valid_matches = []
             for match in top_matches:
-                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]) or not isinstance(match["strategy_summary"], str) or not match["strategy_summary"].strip():
-                    st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing or empty fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]}")
+                cleaned_strategy_summary = re.sub(r"\s+", " ", match["strategy_summary"]).strip() if match.get("strategy_summary") else ""
+                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
+                    st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing or empty fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]} or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
                     continue
                 valid_matches.append(match)
 
@@ -344,22 +334,18 @@ This VC specializes in [area]. It is a strong match for your business because [d
         st.error(f"❌ Profile data error in matching: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
         st.stop()
 
-    # Clustering, categorization, and visualization
     try:
         if len(valid_profiles) < 2:
             st.warning("⚠️ At least 2 valid VC profiles with embeddings are required for clustering and visualization.")
             st.stop()
 
-        # Apply K-means clustering
         clustering_agent = ClusterInterpreterAgent(api_key=openai_api_key)
-        n_clusters = min(len(valid_profiles), 4)  # Ensure n_clusters <= n_samples
+        n_clusters = min(len(valid_profiles), 4)
         profiles = clustering_agent.assign_kmeans_clusters(n_clusters=n_clusters)
 
-        # Categorize clusters
         categorizer = CategorizerAgent(api_key=openai_api_key)
         profiles = categorizer.categorize_clusters()
 
-        # Apply PCA for visualization
         valid_embeddings = [p["embedding"] for p in profiles if isinstance(p.get("embedding"), list)]
         pca = PCA(n_components=2)
         try:
@@ -372,20 +358,18 @@ This VC specializes in [area]. It is a strong match for your business because [d
             p["pca_x"], p["pca_y"] = float(coords[i][0]), float(coords[i][1])
         save_vc_profiles(profiles)
 
-        # Log PCA variance for verification
         with st.expander("🔍 PCA Variance Details"):
             st.write(f"PC1 Variance: {pca.explained_variance_ratio_[0] * 100:.1f}%")
             st.write(f"PC2 Variance: {pca.explained_variance_ratio_[1] * 100:.1f}%")
 
-        # Transform founder embedding
         founder_2d = None
         try:
             founder_2d = pca.transform([founder_embedding])[0]
+            st.write(f"✅ Founder embedding transformed to 2D: {founder_2d}")
         except Exception as e:
             st.error(f"❌ PCA transformation failed: {str(e)}. Skipping visualization.")
             st.stop()
 
-        # Generate intuitive dimension labels
         dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
         dim_labels = {
             "x_label": "Investment Stage Focus",
@@ -404,25 +388,23 @@ This VC specializes in [area]. It is a strong match for your business because [d
         except Exception as e:
             st.warning(f"⚠️ Error generating dimension labels: {str(e)}. Using default labels.")
 
-        # Generate cluster map
         viz_agent = VisualizationAgent(api_key=openai_api_key)
         fig = None
-        labels = dim_labels
-        try:
-            fig, labels = viz_agent.generate_cluster_map(
-                profiles=profiles,
-                coords_2d=coords,
-                pca=pca,
-                dimension_labels=dim_labels,
-                founder_embedding_2d=founder_2d,
-                founder_cluster_id=None,
-                top_match_names=top_vc_urls,
-            )
-        except Exception as e:
-            st.error(f"❌ Visualization failed: {str(e)}")
-            st.stop()
+        if founder_2d is not None:
+            try:
+                fig, labels = viz_agent.generate_cluster_map(
+                    profiles=profiles,
+                    coords_2d=coords,
+                    pca=pca,
+                    dimension_labels=dim_labels,
+                    founder_embedding_2d=founder_2d,
+                    founder_cluster_id=None,
+                    top_match_names=top_vc_urls,
+                )
+            except Exception as e:
+                st.error(f"❌ Visualization failed: {str(e)}")
+                st.stop()
 
-        # Generate category narratives
         category_narratives = {}
         unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
         for category in unique_categories:
@@ -453,14 +435,12 @@ Return the narrative directly as plain text.
             except Exception as e:
                 category_narratives[category] = f"(Narrative generation failed: {str(e)})"
 
-        # Display visualization
         st.subheader("📊 VC Landscape Visualization")
         if fig and founder_2d is not None:
             st.plotly_chart(fig, use_container_width=True)
             st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
             st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
 
-            # Display category narratives
             st.subheader("📚 VC Category Descriptions")
             for category in unique_categories:
                 narrative = category_narratives.get(category, "No narrative available.")
