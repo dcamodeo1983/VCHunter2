@@ -1,33 +1,19 @@
 import streamlit as st
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import cloudscraper
 from bs4 import BeautifulSoup
-import time
 import re
 from urllib.parse import urljoin
 
 class VCWebsiteScraperAgent:
     def __init__(self):
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        try:
-            self.driver = webdriver.Chrome(options=options)
-        except Exception as e:
-            st.error(f"❌ Failed to initialize Selenium driver: {str(e)}. Ensure ChromeDriver is installed.")
-            raise
-        self.session = requests.Session()
-        self.headers = {"User-Agent": "Mozilla/5.0"}
+        self.scraper = cloudscraper.create_scraper()
 
     def scrape_text(self, url):
         try:
-            st.write(f"🌐 Navigating to {url}...")
-            self.driver.get(url)
-            time.sleep(3)
-            page_source = self.driver.page_source
-            soup = BeautifulSoup(page_source, "html.parser")
+            st.write(f"🌐 Fetching {url}...")
+            response = self.scraper.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
 
             for element in soup(["script", "style", "nav", "footer", "header"]):
                 element.decompose()
@@ -43,7 +29,7 @@ class VCWebsiteScraperAgent:
             sentences = [s.strip() for s in cleaned_text.split(".") if s.strip()]
             filtered_sentences = [
                 s for s in sentences
-                if len(s.split()) > 5 and not any(keyword in s.lower() for keyword in ["cookie policy", "privacy policy", "terms of use", "contact us", "sign up"])
+                if len(s.split()) > 5 and not any(keyword in s.lower() for keyword in ["cookie policy", "privacy policy", "terms of use", "contact us", "sign up", "log in"])
             ]
             final_text = ". ".join(filtered_sentences).strip()
 
@@ -56,9 +42,9 @@ class VCWebsiteScraperAgent:
 
     def find_portfolio_links(self, base_url):
         try:
-            self.driver.get(base_url)
-            time.sleep(2)
-            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+            response = self.scraper.get(base_url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
             links = []
             for a in soup.find_all("a", href=True):
                 href = a["href"]
@@ -69,9 +55,3 @@ class VCWebsiteScraperAgent:
         except Exception as e:
             st.error(f"❌ Error finding portfolio links for {base_url}: {str(e)}")
             return []
-
-    def __del__(self):
-        try:
-            self.driver.quit()
-        except:
-            pass
