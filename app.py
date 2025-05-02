@@ -201,8 +201,13 @@ if os.path.exists(VC_PROFILE_PATH):
         p["pca_x"], p["pca_y"] = float(coords[i][0]), float(coords[i][1])
     save_vc_profiles(profiles)
 
-    if uploaded_file and isinstance(embedding, list):
+if profiles and len(profiles) > 1 and isinstance(embedding, list):
         founder_2d = PCA(n_components=2).fit([p["embedding"] for p in profiles]).transform([embedding])[0]
+        st.subheader("🎯 Top 5 VC Matches")
+        for match in top_matches:
+            st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+            st.markdown(f"• Category: {match['category']}  |  Score: {match['score']}")
+            st.markdown("---")
         dim_agent = DimensionExplainerAgent(api_key=openai_api_key)
         dim_agent.generate_axis_labels()
         labels = dim_agent.load_dimension_labels()
@@ -218,15 +223,18 @@ if os.path.exists(VC_PROFILE_PATH):
             dimension_labels=labels
         )
 
-        if fig:
-            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', '')}")
-            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', '')}")
-            st.plotly_chart(fig, use_container_width=True)
+if fig:
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', '')}")
+    st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', '')}")
+    if 'descriptions_markdown' in labels:
+        st.subheader("📚 VC Category Descriptions")
+        for block in labels['descriptions_markdown'].split("\n"):
+            if block.strip():
+                st.markdown(f"🔹 {block}")
 
-            if "descriptions_markdown" in labels:
-                st.subheader("📚 VC Category Descriptions")
-                for block in labels["descriptions_markdown"].split("\n"):
-                    if block.strip():
-                        st.markdown(f"🔹 {block}")
-
-st.divider()
+    if 'descriptions_markdown' in labels:
+        st.subheader("📚 VC Category Descriptions")
+        for block in labels['descriptions_markdown'].split("\n"):
+            if block.strip():
+                st.markdown(f"🔹 {block}")
