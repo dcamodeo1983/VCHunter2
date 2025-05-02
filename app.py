@@ -55,18 +55,23 @@ def save_vc_profiles(profiles):
     if not profiles:
         st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
+    valid_profiles = []
     for p in profiles:
         if not all(key in p and p[key] for key in ["name", "url", "embedding", "strategy_summary"]):
-            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields: {[k for k in ['name', 'url', 'embedding', 'strategy_summary'] if k not in p or not p[k]]}")
-            return
+            st.error(f"❌ Cannot save profile {p.get('name', 'unknown')}: missing required fields: {[k for k in ['name', 'url', 'embedding', 'strategy_summary'] if k not in p or not p[k]]}")
+            continue
         cleaned_strategy_summary = re.sub(r"\s+", " ", p["strategy_summary"]).strip() if p["strategy_summary"] else ""
-        if not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
-            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} has empty or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
-            return
+        if not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 30:
+            st.error(f"❌ Cannot save profile {p.get('name', 'unknown')}: empty or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
+            continue
+        valid_profiles.append(p)
+    if not valid_profiles:
+        st.error("❌ No valid profiles to save.")
+        return
     try:
         with open(VC_PROFILE_PATH, "w") as f:
-            json.dump(profiles, f, indent=2)
-        st.write(f"📁 Saved {len(profiles)} VC profiles to {VC_PROFILE_PATH}")
+            json.dump(valid_profiles, f, indent=2)
+        st.write(f"📁 Saved {len(valid_profiles)} VC profiles to {VC_PROFILE_PATH}")
     except Exception as e:
         st.error(f"❌ Error saving profiles: {str(e)}")
 
@@ -174,7 +179,7 @@ if vc_csv and founder_embedding:
                     links = scraper.find_portfolio_links(url)
                     portfolio = (
                         enricher.extract_portfolio_entries_from_pages(links)
-                        if links else enricher.extract_portfolio_entries(cleaned_vc_text)
+                        if links else []
                     )
                     st.write(f"📈 Portfolio size: {len(portfolio)} companies")
 
@@ -182,7 +187,7 @@ if vc_csv and founder_embedding:
                     cleaned_summary = re.sub(r"\s+", " ", summary).strip() if summary else ""
                     st.write(f"🧠 Raw strategy summary: {cleaned_summary[:100] if cleaned_summary else 'None'}...")
 
-                    if not cleaned_summary or len(cleaned_summary.split()) < 20:
+                    if not cleaned_summary or len(cleaned_summary.split()) < 30:
                         st.error(f"❌ Invalid strategy summary for {url} ({len(cleaned_summary.split())} words). Skipping profile.")
                         continue
 
@@ -214,7 +219,7 @@ if vc_csv and founder_embedding:
 
                     required_fields = ["name", "url", "embedding", "strategy_summary"]
                     cleaned_strategy_summary = re.sub(r"\s+", " ", profile["strategy_summary"]).strip() if profile["strategy_summary"] else ""
-                    if not all(key in profile and profile[key] for key in required_fields) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
+                    if not all(key in profile and profile[key] for key in required_fields) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 30:
                         st.error(f"❌ Profile invalid for {url}: missing or empty fields: {[k for k in required_fields if k not in profile or not profile[k]]}, or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
                         continue
 
@@ -244,7 +249,7 @@ if vc_csv and founder_embedding:
             st.error("❌ No valid VC profiles found in vc_profiles.json. Please ensure CSV processing generated profiles.")
             st.stop()
 
-        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list) and isinstance(p.get("strategy_summary"), str) and re.sub(r"\s+", " ", p["strategy_summary"]).strip() and len(re.sub(r"\s+", " ", p["strategy_summary"]).strip().split()) >= 20]
+        valid_profiles = [p for p in profiles if isinstance(p.get("embedding"), list) and isinstance(p.get("strategy_summary"), str) and re.sub(r"\s+", " ", p["strategy_summary"]).strip() and len(re.sub(r"\s+", " ", p["strategy_summary"]).strip().split()) >= 30]
         if len(valid_profiles) < 1:
             st.error("❌ No valid VC profiles with embeddings and strategy_summary. Please upload a new CSV.")
             st.stop()
@@ -266,7 +271,7 @@ if vc_csv and founder_embedding:
             valid_matches = []
             for match in top_matches:
                 cleaned_strategy_summary = re.sub(r"\s+", " ", match["strategy_summary"]).strip() if match.get("strategy_summary") else ""
-                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 20:
+                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]) or not cleaned_strategy_summary or len(cleaned_strategy_summary.split()) < 30:
                     st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing or empty fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]} or insufficient strategy_summary ({len(cleaned_strategy_summary.split())} words)")
                     continue
                 valid_matches.append(match)
@@ -390,6 +395,7 @@ This VC specializes in [area]. It is a strong match for your business because [d
 
         viz_agent = VisualizationAgent(api_key=openai_api_key)
         fig = None
+        labels = dim_labels
         if founder_2d is not None:
             try:
                 fig, labels = viz_agent.generate_cluster_map(
@@ -401,9 +407,15 @@ This VC specializes in [area]. It is a strong match for your business because [d
                     founder_cluster_id=None,
                     top_match_names=top_vc_urls,
                 )
+                st.subheader("📊 VC Landscape Visualization")
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
+                st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
             except Exception as e:
                 st.error(f"❌ Visualization failed: {str(e)}")
                 st.stop()
+        else:
+            st.warning("⚠️ Visualization skipped: founder_2d not defined.")
 
         category_narratives = {}
         unique_categories = sorted(set(p["category"] for p in profiles if p.get("category")))
@@ -435,19 +447,11 @@ Return the narrative directly as plain text.
             except Exception as e:
                 category_narratives[category] = f"(Narrative generation failed: {str(e)})"
 
-        st.subheader("📊 VC Landscape Visualization")
-        if fig and founder_2d is not None:
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown(f"**🧭 X-Axis ({labels['x_label']}, {labels.get('x_variance', 0.0) * 100:.1f}%):** {labels.get('x_description', 'Represents variance in investment focus.')}")
-            st.markdown(f"**🧭 Y-Axis ({labels['y_label']}, {labels.get('y_variance', 0.0) * 100:.1f}%):** {labels.get('y_description', 'Represents variance in strategic approach.')}")
-
-            st.subheader("📚 VC Category Descriptions")
-            for category in unique_categories:
-                narrative = category_narratives.get(category, "No narrative available.")
-                st.markdown(f"**{category}**: {narrative}")
-                st.markdown("---")
-        else:
-            st.warning("⚠️ Failed to generate visualization due to missing founder embedding or plot data.")
+        st.subheader("📚 VC Category Descriptions")
+        for category in unique_categories:
+            narrative = category_narratives.get(category, "No narrative available.")
+            st.markdown(f"**{category}**: {narrative}")
+            st.markdown("---")
     except Exception as e:
         st.error(f"❌ Error during clustering/visualization: {str(e)}")
 else:
