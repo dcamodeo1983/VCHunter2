@@ -162,7 +162,15 @@ Explain why this VC is a strong match. Respond in this format:
                 # Full rationale view in expander
                 with st.expander("📝 Full Justifications for Top Matches"):
                     st.markdown("Each firm below is matched to your concept with a tailored rationale:")
-                st.markdown("Each firm below is matched to your concept with a tailored rationale:")
+
+                    for match in top_matches:
+                        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                        st.markdown(f"• Category: {match['category']}  |  Similarity Score: {match['score']}")
+                        rationale = match.get('rationale') or 'No strategy available.'
+                        st.markdown(f"**Why this VC is a match:**
+
+> {rationale}")
+                        st.markdown("---")
 
                 for match in top_matches:
                     st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
