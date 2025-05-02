@@ -175,7 +175,7 @@ with st.expander("📝 Full Justifications for Top Matches"):
         st.markdown("---")
 
 
-                    st.markdown("Each firm below is matched to your concept with a tailored rationale:")
+        st.markdown("Each firm below is matched to your concept with a tailored rationale:")
 
                     # (Removed duplicated detailed top match display block)
 
