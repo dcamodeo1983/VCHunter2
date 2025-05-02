@@ -149,7 +149,19 @@ Explain why this VC is a strong match. Respond in this format:
                     st.warning(f"Rationale generation error: {str(e)}")
 
             if top_matches:
-                st.subheader("🎯 Top VC Matches")
+                top_vc_names = [match['name'].strip().lower() for match in top_matches]
+                # Display summary table
+                match_df = pd.DataFrame([{
+                    "VC Name": m["name"],
+                    "Category": m["category"],
+                    "Score": m["score"],
+                    "Justification": m.get("rationale", "")
+                } for m in top_matches])
+                st.dataframe(match_df, use_container_width=True)
+
+                # Full rationale view in expander
+                with st.expander("📝 Full Justifications for Top Matches"):
+                    st.markdown("Each firm below is matched to your concept with a tailored rationale:")
                 st.markdown("Each firm below is matched to your concept with a tailored rationale:")
 
                 for match in top_matches:
@@ -269,7 +281,10 @@ if vc_csv:
 
             if 'descriptions_markdown' in labels:
                 st.subheader("🔎 VC Category Descriptions")
-                st.markdown(labels['descriptions_markdown'])
+                for block in labels['descriptions_markdown'].split("
+"):
+                    if block.strip():
+                        st.markdown(f"🔹 {block}")
         else:
             st.warning("No VC profiles found with valid cluster coordinates.")
 
