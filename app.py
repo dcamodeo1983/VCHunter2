@@ -281,8 +281,7 @@ if vc_csv:
 
             if 'descriptions_markdown' in labels:
                 st.subheader("🔎 VC Category Descriptions")
-                for block in labels['descriptions_markdown'].split("
-"):
+                for block in labels['descriptions_markdown'].split("\n"):
                     if block.strip():
                         st.markdown(f"🔹 {block}")
         else:
