@@ -12,7 +12,7 @@ from agents.embedder_agent import EmbedderAgent
 from agents.vc_website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.vc_strategic_interpreter_agent import VCStrategicInterpreterAgent
-from agents.clustering_agent import ClusteringAgent
+from agents.cluster_interpreter_agent import ClusterInterpreterAgent
 from agents.categorizer_agent import CategorizerAgent
 from agents.visualization_agent import VisualizationAgent
 from agents.dimension_explainer_agent import DimensionExplainerAgent
@@ -239,7 +239,7 @@ if os.path.exists(VC_PROFILE_PATH) and founder_embedding:
             st.stop()
 
         # Apply K-means clustering
-        clustering_agent = ClusteringAgent()  # Removed api_key argument
+        clustering_agent = ClusterInterpreterAgent(api_key=openai_api_key)
         profiles = clustering_agent.assign_kmeans_clusters(n_clusters=4)
 
         # Categorize clusters
