@@ -202,7 +202,9 @@ if os.path.exists(VC_PROFILE_PATH):
     save_vc_profiles(profiles)
 
 if profiles and len(profiles) > 1 and isinstance(embedding, list):
-        founder_2d = PCA(n_components=2).fit([p["embedding"] for p in profiles]).transform([embedding])[0]
+        pca = PCA(n_components=2)
+        coords = pca.fit_transform([p['embedding'] for p in profiles])
+        founder_2d = pca.transform([embedding])[0]
         st.subheader("🎯 Top 5 VC Matches")
         for match in top_matches:
             st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
