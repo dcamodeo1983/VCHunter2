@@ -24,7 +24,7 @@ import openai
 VC_PROFILE_PATH = "outputs/vc_profiles.json"
 
 def load_vc_profiles(expected_dim=1536):
-    """Load VC profiles with valid embeddings matching expected dimensionality."""
+    """Load VC profiles with valid embeddings and strategy_summary."""
     try:
         if os.path.exists(VC_PROFILE_PATH):
             with open(VC_PROFILE_PATH, "r") as f:
@@ -32,11 +32,13 @@ def load_vc_profiles(expected_dim=1536):
             valid_profiles = [
                 p for p in profiles
                 if isinstance(p.get("embedding"), list) and len(p["embedding"]) == expected_dim
+                and isinstance(p.get("strategy_summary"), str) and p["strategy_summary"].strip()
             ]
             if not profiles:
                 return []
             if len(valid_profiles) < len(profiles):
-                st.error(f"❌ Found {len(profiles) - len(valid_profiles)} profiles with invalid embedding dimensions. Clearing vc_profiles.json.")
+                invalid_count = len(profiles) - len(valid_profiles)
+                st.error(f"❌ Found {invalid_count} profiles with invalid embeddings or missing strategy_summary. Clearing vc_profiles.json.")
                 with open(VC_PROFILE_PATH, "w") as f:
                     json.dump([], f)
                 return []
@@ -163,6 +165,10 @@ if vc_csv and founder_embedding:
                     )
 
                     summary = interpreter.interpret_strategy(url, vc_text, portfolio)
+                    if not isinstance(summary, str) or not summary.strip():
+                        st.error(f"❌ Failed to generate strategy summary for {url}.")
+                        continue
+
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
 
                     tagger = StrategicTaggerAgent(api_key=openai_api_key)
@@ -388,6 +394,8 @@ Return the narrative directly as plain text.
                 st.markdown("---")
         else:
             st.warning("⚠️ Failed to generate visualization.")
+    except KeyError as e:
+        st.error(f"❌ Profile data error: Missing field {str(e)}. Please upload a new CSV to reset VC profiles.")
     except Exception as e:
         st.error(f"❌ Error during matching/clustering/visualization: {str(e)}")
 else:
