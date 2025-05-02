@@ -34,8 +34,8 @@ def load_vc_profiles(expected_dim=1536):
             for p in profiles:
                 if not isinstance(p.get("embedding"), list) or len(p["embedding"]) != expected_dim:
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: invalid embedding (got {len(p.get('embedding', []))} dimensions)")
-                elif not isinstance(p.get("strategy_summary"), str) or not p["strategy_summary"].strip():
-                    invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty strategy_summary")
+                elif not isinstance(p.get("strategy_summary"), str) or not p["strategy_summary"].strip() or p.get("strategy_summary") is None:
+                    invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing, empty, or None strategy_summary")
                 elif not isinstance(p.get("url"), str) or not p["url"].strip():
                     invalid_reasons.append(f"Profile {p.get('name', 'unknown')}: missing or empty url")
                 else:
@@ -57,8 +57,8 @@ def save_vc_profiles(profiles):
         st.warning("⚠️ Attempted to save an empty list of profiles — skipping save.")
         return
     for p in profiles:
-        if not all(key in p for key in ["name", "url", "embedding", "strategy_summary"]):
-            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields.")
+        if not all(key in p and p[key] for key in ["name", "url", "embedding", "strategy_summary"]):
+            st.error(f"❌ Cannot save profiles: Profile {p.get('name', 'unknown')} missing required fields: {[k for k in ['name', 'url', 'embedding', 'strategy_summary'] if k not in p or not p[k]]}")
             return
     try:
         with open(VC_PROFILE_PATH, "w") as f:
@@ -175,13 +175,13 @@ if vc_csv and founder_embedding:
 
                     try:
                         summary = interpreter.interpret_strategy(url, vc_text, portfolio)
-                        st.write(f"🧠 Strategy summary for {url}: {summary[:100]}...")
+                        st.write(f"🧠 Raw strategy summary for {url}: {summary[:100] if summary else 'None'}...")
                     except Exception as e:
                         st.error(f"❌ Failed to generate strategy summary for {url}: {str(e)}")
                         summary = f"Unable to generate strategy summary due to error: {str(e)}"
 
-                    if not isinstance(summary, str) or not summary.strip():
-                        st.error(f"❌ Invalid strategy summary for {url}. Skipping profile.")
+                    if not isinstance(summary, str) or not summary.strip() or summary is None:
+                        st.error(f"❌ Invalid strategy summary for {url} (got: {summary}). Skipping profile.")
                         continue
 
                     st.markdown(f"🧠 Strategy: {summary[:300]}...")
@@ -254,8 +254,16 @@ if vc_csv and founder_embedding:
         # Generate and display matches
         if top_matches:
             st.subheader("🎯 Top 5 VC Matches")
+            valid_matches = []
             for match in top_matches:
-                prompt = f"""
+                if not all(key in match and match[key] for key in ["name", "url", "strategy_summary", "score"]):
+                    st.warning(f"⚠️ Skipping invalid match for {match.get('name', 'unknown')}: missing fields {[k for k in ['name', 'url', 'strategy_summary', 'score'] if k not in match or not match[k]]}")
+                    continue
+                valid_matches.append(match)
+
+            for match in valid_matches:
+                try:
+                    prompt = f"""
 You are a senior VC advisor helping a startup founder find the best venture capital firms for their company.
 
 Founder Profile:
@@ -263,7 +271,7 @@ Founder Profile:
 
 VC Profile:
 - Name: {match['name']}
-- Strategy Summary: {match['strategy_summary'][:500]}
+- Strategy Summary: {match['strategy_summary'][:500] if match['strategy_summary'] else 'No strategy summary available'}
 - Strategic Tags: {', '.join(match.get('strategic_tags', []))}
 - Portfolio Size: {match.get('portfolio_size', 0)} companies
 - Category: {match.get('category', 'Uncategorized')}
@@ -274,7 +282,6 @@ Respond in this format:
 **Why {match['name']} is a Match**:
 This VC specializes in [area]. It is a strong match for your business because [detailed justification, 2–3 sentences].
 """
-                try:
                     response = client.chat.completions.create(
                         model="gpt-4",
                         messages=[
@@ -289,24 +296,27 @@ This VC specializes in [area]. It is a strong match for your business because [d
                     match['rationale'] = f"(Rationale generation failed: {str(e)})"
                     st.warning(f"⚠️ Rationale generation error for {match['name']}: {str(e)}")
 
-            st.dataframe(
-                pd.DataFrame([
-                    {
-                        "Name": m["name"],
-                        "URL": m["url"],
-                        "Category": m.get("category", "Uncategorized"),
-                        "Score": f"{m['score']:.2f}",
-                        "Rationale": m.get("rationale", "No rationale available.")
-                    } for m in top_matches
-                ]),
-                use_container_width=True
-            )
-            with st.expander("📝 Detailed Match Justifications"):
-                for match in top_matches:
-                    st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
-                    st.markdown(f"• Category: {match.get('category', 'Uncategorized')}  |  Score: {match['score']:.2f}")
-                    st.markdown(f"{match.get('rationale', 'No rationale available.')}")
-                    st.markdown("---")
+            if valid_matches:
+                st.dataframe(
+                    pd.DataFrame([
+                        {
+                            "Name": m["name"],
+                            "URL": m["url"],
+                            "Category": m.get("category", "Uncategorized"),
+                            "Score": f"{m['score']:.2f}",
+                            "Rationale": m.get("rationale", "No rationale available.")
+                        } for m in valid_matches
+                    ]),
+                    use_container_width=True
+                )
+                with st.expander("📝 Detailed Match Justifications"):
+                    for match in valid_matches:
+                        st.markdown(f"**{match['name']}** — [{match['url']}]({match['url']})")
+                        st.markdown(f"• Category: {match.get('category', 'Uncategorized')}  |  Score: {match['score']:.2f}")
+                        st.markdown(f"{match.get('rationale', 'No rationale available.')}")
+                        st.markdown("---")
+            else:
+                st.warning("⚠️ No valid VC matches after filtering. Please ensure valid VC profiles were generated from the CSV.")
         else:
             st.warning("⚠️ No VC matches found. Please ensure valid VC profiles were generated from the CSV.")
 
