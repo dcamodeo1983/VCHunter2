@@ -1,5 +1,6 @@
 from openai import OpenAI
 import streamlit as st
+import re
 
 class VCStrategicInterpreterAgent:
     def __init__(self, api_key):
@@ -7,10 +8,10 @@ class VCStrategicInterpreterAgent:
 
     def interpret_strategy(self, vc_name, site_text, portfolio_entries):
         try:
-            # Validate inputs
-            if not site_text or not site_text.strip():
-                st.warning(f"⚠️ No valid website text for {vc_name}. Using fallback.")
-                return f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to missing website data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
+            cleaned_site_text = re.sub(r"\s+", " ", site_text).strip() if site_text else ""
+            if not cleaned_site_text or len(cleaned_site_text.split()) < 100:
+                st.warning(f"⚠️ Insufficient website text for {vc_name} ({len(cleaned_site_text.split())} words). Using fallback.")
+                return f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to insufficient website data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
 
             formatted_entries = "\n".join(
                 [f"- {entry['name']}: {entry['description']}" for entry in portfolio_entries if entry.get('name') and entry.get('description')]
@@ -32,7 +33,7 @@ You must answer as if advising a startup founder evaluating this VC. If insuffic
 Firm Name: {vc_name}
 
 Website Summary:
-{site_text[:5000]}
+{cleaned_site_text[:5000]}
 
 Portfolio Companies:
 {formatted_entries[:10000]}
@@ -42,7 +43,7 @@ Category: <Short high-level label>
 Rationale: <3–5 sentences on their investing personality and thesis>
 Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-stage SaaS, national resilience>
 """
-            st.write(f"📝 Sending prompt for {vc_name} (site_text={len(site_text)} chars, portfolio_entries={len(formatted_entries)} chars)")
+            st.write(f"📝 Sending prompt for {vc_name} (site_text={len(cleaned_site_text)} chars, portfolio_entries={len(formatted_entries)} chars)")
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
@@ -50,12 +51,14 @@ Motivational Signals: <Comma-separated themes like: contrarian, deeptech, early-
                 max_tokens=750
             )
             summary = response.choices[0].message.content.strip()
-            
-            # Validate summary
-            if not summary or not isinstance(summary, str) or not summary.strip():
-                st.warning(f"⚠️ Empty strategy summary for {vc_name}. Using fallback.")
+            cleaned_summary = re.sub(r"\s+", " ", summary).strip() if summary else ""
+
+            if not cleaned_summary or len(cleaned_summary.split()) < 20:
+                st.warning(f"⚠️ Empty or insufficient strategy summary for {vc_name} ({len(cleaned_summary.split())} words). Using fallback.")
                 summary = f"Category: Generalist\nRationale: Unable to generate detailed strategy for {vc_name} due to limited or ambiguous website and portfolio data. The firm appears to invest across various sectors, but specific focus areas are unclear.\nMotivational Signals: generalist, startup-friendly"
-            
+            else:
+                summary = cleaned_summary
+
             st.write(f"📝 Received summary for {vc_name}: {summary[:100] if summary else 'None'}...")
             return summary
 
